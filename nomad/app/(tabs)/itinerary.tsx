@@ -1,24 +1,34 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
-import itineraries, { Itinerary } from "../data/itineraries";
+import initialItineraries, { Itinerary } from "../data/itineraries";
+import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 
 export default function ItineraryScreen() {
+  // Use state for itineraries so you can add new ones
+  const [itineraries, setItineraries] =
+    useState<Itinerary[]>(initialItineraries);
+  const modalizeRef = useRef<any>(null);
+
+  const openSheet = () => modalizeRef.current?.open();
   const handleItineraryPress = (itinerary: Itinerary) => {
     // Navigate to details screen if needed
     alert(`Open itinerary for ${itinerary.city}`);
   };
 
-  const handleAddPress = () => {
-    // Show create itinerary modal or navigate to create screen
-    alert("Create a new itinerary!");
+  const handleAddItinerary = (name: string, days: number, list: string) => {
+    setItineraries((prev) => [
+      ...prev,
+      { city: name, days, locations: Math.floor(Math.random() * 25) + 3 }, // Or get actual value
+    ]);
+    modalizeRef.current?.close();
   };
 
   const renderEmpty = () => (
     <View style={styles.emptyCard}>
       <Text style={styles.emptyText}>No itineraries yet</Text>
-      <Pressable style={styles.createButton} onPress={handleAddPress}>
+      <Pressable style={styles.createButton} onPress={openSheet}>
         <Text style={styles.createButtonText}>Create your first itinerary</Text>
       </Pressable>
     </View>
@@ -26,13 +36,15 @@ export default function ItineraryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>My Itineraries</Text>
       <FlatList
         data={itineraries}
         keyExtractor={(item) => item.city}
         renderItem={({ item }) => (
           <Pressable
-            style={styles.card}
+            style={({ pressed }) => [
+              styles.card,
+              { transform: [{ scale: pressed ? 0.97 : 1 }] },
+            ]}
             onPress={() => handleItineraryPress(item)}
           >
             <View
@@ -56,9 +68,29 @@ export default function ItineraryScreen() {
       />
 
       {/* Floating Add Button */}
-      <Pressable style={styles.fab} onPress={handleAddPress}>
+      <Pressable
+        style={{
+          position: "absolute",
+          right: 28,
+          bottom: 36,
+          width: 72,
+          height: 72,
+          backgroundColor: Colors.accent,
+          borderRadius: 36,
+          alignItems: "center",
+          justifyContent: "center",
+          elevation: 5,
+        }}
+        onPress={openSheet}
+      >
         <Ionicons name="add" size={44} color={Colors.card} />
       </Pressable>
+
+      <AddItineraryBottomSheet
+        ref={modalizeRef}
+        onAdd={handleAddItinerary}
+        availableLists={["Favorites", "Google List 1", "Google List 2"]}
+      />
     </View>
   );
 }
@@ -80,16 +112,21 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.card,
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 18,
+    padding: 20,
     marginHorizontal: 16,
     marginBottom: 16,
-    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
   city: {
-    fontSize: 36,
-    fontWeight: "bold",
+    fontSize: 30,
+    fontWeight: "700",
     color: Colors.accent,
+    marginBottom: 4,
   },
   cardInfoRow: {
     flexDirection: "row",
@@ -98,8 +135,9 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     color: Colors.accent,
-    fontWeight: "bold",
-    fontSize: 18,
+    fontWeight: "500",
+    fontSize: 15,
+    opacity: 0.8,
   },
   fab: {
     position: "absolute",
