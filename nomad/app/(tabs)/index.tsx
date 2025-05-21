@@ -58,16 +58,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
   },
   headerBg: {
-    minHeight: 220,
+    minHeight: 300, // Increased height for the upper part
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.card,
   },
   logoBox: {
     backgroundColor: Colors.primary,
-    width: 120,
-    height: 120,
-    borderRadius: 24,
+    width: 80, // Reduced size for the logo box
+    height: 80, // Reduced size for the logo box
+    borderRadius: 16, // Adjusted for smaller square
     alignItems: "center",
     justifyContent: "center",
     marginTop: 56,
@@ -88,6 +88,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 80,
     paddingTop: 56,
     alignItems: "center",
+    justifyContent: "center", // Center content in the teal part
     paddingHorizontal: 16,
   },
   title: {
