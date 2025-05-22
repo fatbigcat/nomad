@@ -1,11 +1,13 @@
 import React, { useRef, useState } from "react";
 import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import Colors from "@/constants/Colors";
 import initialItineraries, { Itinerary } from "../data/itineraries";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 
 export default function ItineraryScreen() {
+  const router = useRouter();
   // Use state for itineraries so you can add new ones
   const [itineraries, setItineraries] =
     useState<Itinerary[]>(initialItineraries);
@@ -13,8 +15,10 @@ export default function ItineraryScreen() {
 
   const openSheet = () => modalizeRef.current?.open();
   const handleItineraryPress = (itinerary: Itinerary) => {
-    // Navigate to details screen if needed
-    alert(`Open itinerary for ${itinerary.city}`);
+    router.push({
+      pathname: "/itineraryDetails",
+      params: { city: itinerary.city },
+    });
   };
 
   const handleAddItinerary = (name: string, days: number, list: string) => {
@@ -45,6 +49,7 @@ export default function ItineraryScreen() {
               styles.card,
               { transform: [{ scale: pressed ? 0.97 : 1 }] },
             ]}
+            // Only open details when pressing the card, not the share icon
             onPress={() => handleItineraryPress(item)}
           >
             <View
@@ -54,12 +59,28 @@ export default function ItineraryScreen() {
                 alignItems: "center",
               }}
             >
-              <Text style={styles.city}>{item.city}</Text>
-              <Ionicons name="arrow-forward" size={36} color={Colors.accent} />
-            </View>
-            <View style={styles.cardInfoRow}>
-              <Text style={styles.cardInfo}>{item.days} days</Text>
-              <Text style={styles.cardInfo}>{item.locations} locations</Text>
+              <View>
+                <Text style={styles.city}>{item.city}</Text>
+                <Text style={styles.cardInfo}>{item.days} days</Text>
+                <Text style={styles.cardInfo}>{item.locations} locations</Text>
+              </View>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (navigator.share) {
+                    navigator.share({
+                      title: `Itinerary for ${item.city}`,
+                      text: `Check out my itinerary for ${item.city}: ${item.days} days, ${item.locations} locations!`,
+                    });
+                  } else {
+                    alert(`Share itinerary for ${item.city}`);
+                  }
+                }}
+                hitSlop={10}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="share-social" size={36} color={Colors.accent} />
+              </Pressable>
             </View>
           </Pressable>
         )}

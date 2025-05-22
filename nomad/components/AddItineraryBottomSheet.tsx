@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Keyboard,
 } from "react-native";
 import { Modalize } from "react-native-modalize";
 import Colors from "@/constants/Colors";
@@ -27,6 +28,7 @@ const AddItineraryBottomSheet = forwardRef<
     const [days, setDays] = useState("");
     const [list, setList] = useState("");
     const [error, setError] = useState("");
+    const [dropdownVisible, setDropdownVisible] = useState(false);
 
     const handleAdd = () => {
       if (!name.trim()) {
@@ -63,7 +65,7 @@ const AddItineraryBottomSheet = forwardRef<
         keyboardAvoidingOffset={0}
       >
         <ScrollView
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           contentContainerStyle={{
             paddingHorizontal: 24,
             paddingBottom: 0,
@@ -84,13 +86,54 @@ const AddItineraryBottomSheet = forwardRef<
             onChangeText={setName}
             autoFocus
           />
-          <TextInput
-            placeholder="Choose list"
-            placeholderTextColor={Colors.border}
-            style={styles.input}
-            value={list}
-            onChangeText={setList}
-          />
+
+          {/* Dropdown for Choose List */}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              {
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              },
+            ]}
+            onPress={() => {
+              setDropdownVisible(!dropdownVisible);
+              if (!dropdownVisible) {
+                Keyboard.dismiss();
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={{
+                color: list ? Colors.text : Colors.border,
+                fontSize: 18,
+              }}
+            >
+              {list || "Choose list"}
+            </Text>
+            <Text style={{ color: Colors.border, fontSize: 18 }}>
+              {dropdownVisible ? "▲" : "▼"}
+            </Text>
+          </TouchableOpacity>
+          {dropdownVisible && (
+            <View style={styles.dropdownMenu}>
+              {availableLists.map((item, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setList(item);
+                    setDropdownVisible(false);
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           <TextInput
             placeholder="Days"
             placeholderTextColor={Colors.border}
@@ -113,7 +156,7 @@ const AddItineraryBottomSheet = forwardRef<
             <Text style={styles.addButtonText}>Add itinerary</Text>
           </TouchableOpacity>
 
-          {/* Add a spacer to guarantee extra room above keyboard!!!!!!!! */}
+          {/* Add a spacer to guarantee extra room above keyboard */}
           <View style={{ height: 120 }} />
         </ScrollView>
       </Modalize>
@@ -167,6 +210,30 @@ const styles = StyleSheet.create({
     color: "#c00",
     marginBottom: 8,
     marginTop: -6,
+  },
+  dropdownMenu: {
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    borderColor: Colors.border,
+    borderWidth: 1,
+    marginBottom: 12,
+    marginTop: -8,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+    zIndex: 10,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
+  },
+  dropdownItemText: {
+    fontSize: 18,
+    color: Colors.text,
   },
 });
 

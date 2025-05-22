@@ -50,7 +50,7 @@ export default function IndexScreen() {
   );
 }
 IndexScreen.options = {
-  useHeader: false,
+  headerShown: false,
 };
 const styles = StyleSheet.create({
   root: {
