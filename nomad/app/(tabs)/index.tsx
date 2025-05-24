@@ -9,7 +9,7 @@ export default function IndexScreen() {
   // Handle Google login (placeholder: navigates to Home)
   const handleGoogleLogin = () => {
     // Here you’d trigger Google authentication
-    router.replace("/home"); // On success, go to home screen
+    router.replace("/itinerary"); // On success, go to home screen
   };
 
   return (

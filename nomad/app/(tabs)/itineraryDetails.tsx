@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,13 @@ import {
   FlatList,
   Dimensions,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
-import BottomSheet from "@gorhom/bottom-sheet";
+import MapView, { Marker } from "react-native-maps";
+import { Modalize } from "react-native-modalize";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import demoItinerary, { ItineraryDay, Place } from "../data/demoItinerary";
 import { useLocalSearchParams } from "expo-router";
 
-const screenWidth = Dimensions.get("window").width;
 const screenHeight = Dimensions.get("window").height;
 
 function getPlaceIcon(type: Place["type"]) {
@@ -22,8 +21,8 @@ function getPlaceIcon(type: Place["type"]) {
     return (
       <MaterialCommunityIcons
         name="silverware-fork-knife"
-        size={32}
-        color="#fff"
+        size={28}
+        color={Colors.accent}
         style={{ marginRight: 12 }}
       />
     );
@@ -31,8 +30,8 @@ function getPlaceIcon(type: Place["type"]) {
     return (
       <MaterialCommunityIcons
         name="bank"
-        size={32}
-        color="#fff"
+        size={28}
+        color={Colors.accent}
         style={{ marginRight: 12 }}
       />
     );
@@ -40,33 +39,52 @@ function getPlaceIcon(type: Place["type"]) {
     return (
       <Ionicons
         name="cart"
-        size={32}
-        color="#fff"
+        size={28}
+        color={Colors.accent}
         style={{ marginRight: 12 }}
       />
     );
   return (
     <Ionicons
       name="location"
-      size={32}
-      color="#fff"
+      size={28}
+      color={Colors.accent}
       style={{ marginRight: 12 }}
     />
   );
 }
 
+const allPlaces = demoItinerary.flatMap((day) => day.places);
+
 export default function ItineraryDetailsScreen() {
+  const modalizeRef = useRef<Modalize>(null);
   const { city } = useLocalSearchParams();
 
-  // Only Paris has demo data
-  const isParis = city === "Paris";
-  const itineraryDays = isParis ? demoItinerary : [];
-  const allPlaces = isParis ? demoItinerary.flatMap((day) => day.places) : [];
+  // Optional: open the sheet automatically when screen mounts
+  useEffect(() => {
+    modalizeRef.current?.open();
+  }, []);
 
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["17%", "50%", "92%"], []);
+  const renderDay = ({ item: day }: { item: ItineraryDay }) => (
+    <View style={styles.daySection}>
+      <View style={styles.dayHeader}>
+        <Text style={styles.dayTitle}>Day {day.day}</Text>
+        <TouchableOpacity style={styles.addActivityBtn}>
+          <Ionicons name="add" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      {day.places.map((place, idx) => (
+        <View style={styles.placeCard} key={place.name + idx}>
+          {getPlaceIcon(place.type)}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.placeName}>{place.name}</Text>
+            <Text style={styles.placeHours}>Open {place.hours}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
 
-  // Initial region for Paris demo
   const initialRegion = {
     latitude: 48.864716,
     longitude: 2.349014,
@@ -74,130 +92,78 @@ export default function ItineraryDetailsScreen() {
     longitudeDelta: 0.04,
   };
 
-  // Render each day section
-  const renderDay = ({ item: day }: { item: ItineraryDay }) => {
-    console.log("day", day); // Debug: check day object
-    return (
-      <View style={styles.daySection}>
-        <View style={styles.dayHeader}>
-          <Text style={styles.dayTitle}>
-            {day.day ? `Day ${day.day}` : "Day ?"}
-          </Text>
-          <TouchableOpacity style={styles.addBtn}>
-            <Ionicons name="add" size={22} color={Colors.card} />
-          </TouchableOpacity>
-        </View>
-        {(Array.isArray(day.places) ? day.places : []).map((place, idx) => {
-          console.log("place", place); // Debug: check place object
-          return (
-            <View style={styles.placeCard} key={(place?.name || "") + idx}>
-              {getPlaceIcon(place?.type || "food")}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.placeName}>
-                  {place?.name || "Unknown Place"}
-                </Text>
-                <Text style={styles.placeHours}>
-                  Open {place?.hours || "—"}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={26} color="#fff" />
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
-
   return (
-    <View style={styles.root}>
-      {/* REAL MAP BACKGROUND */}
+    <View style={{ flex: 1 }}>
+      {/* MAP */}
       <MapView
-        style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
-        provider={PROVIDER_GOOGLE}
+        style={StyleSheet.absoluteFill}
         initialRegion={initialRegion}
         customMapStyle={mapStyle}
-        scrollEnabled={true}
-        zoomEnabled={true}
-        pitchEnabled={true}
-        rotateEnabled={true}
       >
-        {allPlaces.map((place, idx) =>
-          place &&
-          typeof place.lat === "number" &&
-          typeof place.lng === "number" ? (
-            <Marker
-              key={(place.name || "marker") + idx}
-              coordinate={{
-                latitude: place.lat,
-                longitude: place.lng,
-              }}
-              title={place.name || ""}
-              description={place.hours || ""}
-              pinColor={Colors.accent}
-            />
-          ) : null
-        )}
+        {allPlaces.map((place, idx) => (
+          <Marker
+            key={place.name + idx}
+            coordinate={{ latitude: place.lat, longitude: place.lng }}
+            title={place.name}
+            description={place.hours}
+            pinColor="#1499b2"
+          />
+        ))}
       </MapView>
 
-      {/* Optional overlay for readability */}
-      <View style={[styles.mapOverlay, { zIndex: 1 }]} pointerEvents="none" />
-
-      {/* Floating header */}
+      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerCity}>{city}</Text>
-        <Ionicons name="menu" size={32} color={Colors.card} />
+        <Text style={styles.headerCity}>{city || "Itinerary"}</Text>
       </View>
 
-      {/* BOTTOM SHEET */}
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={1}
-        snapPoints={snapPoints}
-        style={styles.sheet}
-        backgroundStyle={styles.sheetBackground}
-        handleIndicatorStyle={styles.handleIndicator}
-        enablePanDownToClose={false}
+      {/* MODALIZE SHEET */}
+      <Modalize
+        ref={modalizeRef}
+        modalStyle={styles.modal}
+        handleStyle={styles.handle}
+        alwaysOpen={screenHeight * 0.23}
+        adjustToContentHeight={false}
+        modalHeight={screenHeight * 0.93}
+        scrollViewProps={{
+          showsVerticalScrollIndicator: false,
+        }}
       >
-        {isParis ? (
-          <FlatList
-            data={itineraryDays}
-            renderItem={renderDay}
-            keyExtractor={(item, idx) => "day" + (item?.day ?? idx)}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 60 }}
-          />
-        ) : (
-          <View style={{ padding: 32, alignItems: "center" }}>
-            <Text
-              style={{ color: Colors.accent, fontSize: 20, fontWeight: "bold" }}
-            >
-              No itinerary data for {city}
-            </Text>
-          </View>
-        )}
-        {/* Floating Add Day button */}
-        <TouchableOpacity style={styles.fab}>
-          <Ionicons name="add" size={36} color={Colors.card} />
-        </TouchableOpacity>
-      </BottomSheet>
+        <FlatList
+          data={demoItinerary}
+          renderItem={renderDay}
+          keyExtractor={(item) => "day" + item.day}
+          contentContainerStyle={{
+            paddingBottom: 85,
+            paddingHorizontal: 14,
+            paddingTop: 14,
+          }}
+          showsVerticalScrollIndicator={false}
+        />
+        <View style={styles.addDayContainer}>
+          <TouchableOpacity style={styles.addDayButton}>
+            <Ionicons
+              name="add"
+              size={22}
+              color="#fff"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={styles.addDayText}>Add Day</Text>
+          </TouchableOpacity>
+        </View>
+        {/* Spacer to lift Add Day button higher above the bottom */}
+        <View style={{ height: 40 }} />
+      </Modalize>
     </View>
   );
 }
 
-// OPTIONAL: Desaturated map style for modern look
 const mapStyle = [
-  { elementType: "geometry", stylers: [{ color: "#ebe3cd" }] },
+  { elementType: "geometry", stylers: [{ color: "#f8f6f1" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#523735" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#f5f1e6" }] },
-  // ...more, see https://snazzymaps.com/
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
 ];
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
   header: {
     position: "absolute",
     top: 48,
@@ -205,96 +171,131 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 28,
+    justifyContent: "center", // center the text
+    paddingHorizontal: 24,
     zIndex: 2,
   },
   headerCity: {
-    fontSize: 28,
+    fontSize: 26, // match layout title size
     fontWeight: "bold",
-    color: Colors.card,
-    letterSpacing: 1.1,
-  },
-  sheet: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.16,
+    color: Colors.card, // match layout color
+    letterSpacing: 1.2,
+    backgroundColor: Colors.primary, // match layout background
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 22,
+    overflow: "hidden",
+    marginRight: 0, // remove extra margin
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.17,
     shadowRadius: 14,
-    elevation: 18,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+    textAlign: "center", // ensure text is centered
   },
-  sheetBackground: {
+  modal: {
+    backgroundColor: "#fcf9f6",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: Colors.card,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 10,
+    paddingHorizontal: 0,
+    borderWidth: 0,
   },
-  handleIndicator: {
-    backgroundColor: Colors.border,
+  handle: {
+    backgroundColor: Colors.accentLight,
     width: 48,
-    height: 7,
-    borderRadius: 3.5,
+    height: 6,
+    borderRadius: 3,
     alignSelf: "center",
-    marginVertical: 7,
+    marginVertical: 10,
   },
   daySection: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   dayHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    marginHorizontal: 8,
+    marginBottom: 8,
+    marginHorizontal: 4,
     justifyContent: "space-between",
   },
   dayTitle: {
     fontSize: 22,
-    fontWeight: "bold",
-    color: Colors.accent,
+    fontWeight: "700",
+    color: Colors.primary,
+    letterSpacing: 0.2,
   },
-  addBtn: {
+  addActivityBtn: {
     backgroundColor: Colors.accent,
-    borderRadius: 20,
-    padding: 5,
-    marginLeft: 16,
+    borderRadius: 17,
+    padding: 4,
+    marginLeft: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 32,
+    height: 32,
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   placeCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.accentLight,
-    marginHorizontal: 8,
+    backgroundColor: "#fff", // set card background to white
     marginBottom: 12,
-    borderRadius: 20,
+    borderRadius: 22,
     paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 7,
-    elevation: 2,
+    shadowOpacity: 0.18, // increase shadow opacity
+    shadowRadius: 14, // increase shadow radius
+    shadowOffset: { width: 0, height: 6 }, // increase shadow offset
+    elevation: 6, // increase elevation for Android
   },
   placeName: {
     fontWeight: "bold",
-    fontSize: 17,
-    color: Colors.card,
+    fontSize: 16.5,
+    color: Colors.primary,
+    marginBottom: 2,
   },
   placeHours: {
-    color: "#fff",
+    color: Colors.accent,
     fontSize: 13,
-    opacity: 0.88,
     fontWeight: "500",
+    opacity: 0.9,
   },
-  fab: {
+  addDayContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginTop: 0,
+    marginBottom: 20,
     position: "absolute",
-    bottom: 18,
-    right: 26,
+    bottom: 0,
+    left: 0,
+  },
+  addDayButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.accent,
     borderRadius: 28,
-    width: 56,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 8,
+    paddingHorizontal: 40,
+    paddingVertical: 15,
     shadowColor: Colors.accent,
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 14,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  addDayText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    letterSpacing: 0.4,
   },
 });
