@@ -211,7 +211,7 @@ function HeaderRight({
   editMode: boolean;
   onPress: () => void;
 }) {
-  return <MemoizedEditListButton editMode={editMode} onPress={onPress} />;
+  return <EditListButton editMode={editMode} onPress={onPress} />;
 }
 
 export default function ItineraryDetailsScreen() {
@@ -462,9 +462,10 @@ export default function ItineraryDetailsScreen() {
   React.useLayoutEffect(() => {
     navigation.setOptions({
       title: cityTitle,
+      headerRight: () => <HeaderRight editMode={editMode} onPress={handleToggleEditMode} />,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cityTitle]);
+  }, [cityTitle, editMode]);
 
   // Remove all selected places for a day
   function removeSelectedPlacesForDay(dayIndex: number) {
@@ -511,10 +512,6 @@ export default function ItineraryDetailsScreen() {
           }}
         >
           <Text style={styles.headerCity}>{city || "Itinerary"}</Text>
-          <MemoizedEditListButton
-            editMode={editMode}
-            onPress={handleToggleEditMode}
-          />
         </View>
 
         {/* MAP */}
