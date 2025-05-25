@@ -8,6 +8,9 @@ import {
   Animated,
   Alert,
 } from "react-native";
+import DraggableFlatList, {
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import MapView, { Marker } from "react-native-maps";
 import { Modalize } from "react-native-modalize";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -22,7 +25,12 @@ import {
 import LocationPickerScreen, {
   LocationSort,
 } from "../../components/LocationPickerScreen";
-import { Stack, useNavigation, useLocalSearchParams, useFocusEffect } from "expo-router";
+import {
+  Stack,
+  useNavigation,
+  useLocalSearchParams,
+  useFocusEffect,
+} from "expo-router";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -76,6 +84,30 @@ function getPlaceIcon(type: Place["type"]) {
       style={{ marginRight: 12 }}
     />
   );
+}
+const [flatPlaces, setFlatPlaces] = useState<FlattenedPlace[]>([]);
+
+interface FlattenedPlace extends Place {
+  key: string;
+  dayIndex: number;
+  placeIndex: number;
+  dayNumber: number;
+}
+
+function flattenItinerary(itinerary: ItineraryDay[]): FlattenedPlace[] {
+  let items: FlattenedPlace[] = [];
+  itinerary.forEach((day: ItineraryDay, dayIndex: number) => {
+    day.places.forEach((place: Place, placeIndex: number) => {
+      items.push({
+        ...place,
+        key: `${dayIndex}-${placeIndex}-${place.name}`,
+        dayIndex,
+        placeIndex,
+        dayNumber: day.day,
+      });
+    });
+  });
+  return items;
 }
 
 // Utility: convert any Place to a Firestore-compatible Place (only supported types)
@@ -148,6 +180,7 @@ function PlaceCard({
   showCheckmark,
   disabled,
   style,
+  icon,
 }: {
   name: string;
   hours: string;
@@ -156,6 +189,7 @@ function PlaceCard({
   showCheckmark?: boolean;
   disabled?: boolean;
   style?: any;
+  icon?: React.ReactNode;
 }) {
   return (
     <TouchableOpacity
@@ -172,6 +206,7 @@ function PlaceCard({
       onPress={onPress}
       disabled={disabled}
     >
+      {icon && <View style={styles.iconWrap}>{icon}</View>}
       <View style={{ flex: 1 }}>
         <Text style={styles.placeName}>{name}</Text>
         <Text style={styles.placeHours}>Open {hours}</Text>
@@ -715,23 +750,6 @@ export default function ItineraryDetailsScreen() {
                         const isSelected =
                           editMode &&
                           selectedForDelete[`${dayIndex}-${placeIndex}`];
-                        const cardProps = {
-                          style: [
-                            styles.placeCard,
-                            editMode &&
-                              isSelected && {
-                                borderColor: Colors.accent,
-                                borderWidth: 2,
-                                backgroundColor: "#e6f7fa",
-                              },
-                          ],
-                          activeOpacity: editMode ? 0.7 : 1,
-                          onPress: editMode
-                            ? () =>
-                                handleToggleLocationDelete(dayIndex, placeIndex)
-                            : undefined,
-                          disabled: !editMode,
-                        };
                         return (
                           <Swipeable
                             key={place.name + placeIndex}
@@ -744,25 +762,28 @@ export default function ItineraryDetailsScreen() {
                             overshootRight={false}
                             enabled={!editMode}
                           >
-                            <TouchableOpacity {...cardProps}>
-                              {getPlaceIcon(place.type)}
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.placeName}>
-                                  {place.name}
-                                </Text>
-                                <Text style={styles.placeHours}>
-                                  Open {place.hours}
-                                </Text>
-                              </View>
-                              {editMode && isSelected && (
-                                <Ionicons
-                                  name="checkmark-circle"
-                                  size={22}
-                                  color={Colors.accent}
-                                  style={{ marginLeft: 8 }}
-                                />
-                              )}
-                            </TouchableOpacity>
+                            <PlaceCard
+                              name={place.name}
+                              hours={place.hours}
+                              isSelected={isSelected}
+                              onPress={
+                                editMode
+                                  ? () =>
+                                      handleToggleLocationDelete(
+                                        dayIndex,
+                                        placeIndex
+                                      )
+                                  : undefined
+                              }
+                              showCheckmark={editMode}
+                              disabled={!editMode}
+                              icon={getPlaceIcon(place.type)}
+                              style={
+                                editMode && isSelected
+                                  ? styles.placeCardSelected
+                                  : undefined
+                              }
+                            />
                           </Swipeable>
                         );
                       })}

@@ -41,15 +41,18 @@ export default function ItineraryScreen() {
   }, []);
 
   const openSheet = () => modalizeRef.current?.open();
-  const handleItineraryPress = async (itinerary: Itinerary & { id: string }) => {
+  const handleItineraryPress = async (
+    itinerary: Itinerary & { id: string }
+  ) => {
     // Fetch all Google Maps lists
     const lists = await getAllGoogleMapsLists();
     // Try to find the list by city name (case-insensitive)
-    const list = lists.find((l: any) =>
-      typeof l.city === "string" &&
-      l.city.toLowerCase() === itinerary.city.toLowerCase() &&
-      Array.isArray(l.places) &&
-      l.places.length > 0
+    const list = lists.find(
+      (l: any) =>
+        typeof l.city === "string" &&
+        l.city.toLowerCase() === itinerary.city.toLowerCase() &&
+        Array.isArray(l.places) &&
+        l.places.length > 0
     ) as GoogleMapsList | undefined;
     let center = undefined;
     if (list) {
