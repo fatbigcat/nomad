@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,31 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  Animated,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Modalize } from "react-native-modalize";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/Colors";
-import demoItinerary, { ItineraryDay, Place } from "../data/demoItinerary";
+import { getAllItineraries } from "../data/itineraryDb";
 import { useLocalSearchParams } from "expo-router";
 
 const screenHeight = Dimensions.get("window").height;
+
+// Define types if not imported from Firestore-aware file
+export type Place = {
+  name: string;
+  type: "food" | "museum" | "store" | "landmark" | "park";
+  hours: string;
+  lat: number;
+  lng: number;
+};
+
+export type ItineraryDay = {
+  day: number;
+  places: Place[];
+};
 
 function getPlaceIcon(type: Place["type"]) {
   if (type === "food")
@@ -54,18 +70,87 @@ function getPlaceIcon(type: Place["type"]) {
   );
 }
 
-const allPlaces = demoItinerary.flatMap((day) => day.places);
-
 export default function ItineraryDetailsScreen() {
   const modalizeRef = useRef<Modalize>(null);
   const { city } = useLocalSearchParams();
+  const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Optional: open the sheet automatically when screen mounts
+  // Fetch itinerary from Firestore on mount
   useEffect(() => {
+    async function fetchItinerary() {
+      setLoading(true);
+      try {
+        const all = await getAllItineraries();
+        // For now, just use the first itinerary (improve as needed)
+        if (all.length > 0 && all[0].details) {
+          setItinerary(all[0].details);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchItinerary();
     modalizeRef.current?.open();
   }, []);
 
-  const renderDay = ({ item: day }: { item: ItineraryDay }) => (
+  const removePlace = (dayIndex: number, placeIndex: number) => {
+    setItinerary((prevItinerary) =>
+      prevItinerary.map((day: ItineraryDay, idx: number) =>
+        idx === dayIndex
+          ? {
+              ...day,
+              places: day.places.filter(
+                (_: Place, placeIdx: number) => placeIdx !== placeIndex
+              ),
+            }
+          : day
+      )
+    );
+  };
+
+  const renderRightActions = (
+    dayIndex: number,
+    placeIndex: number,
+    progress: Animated.AnimatedInterpolation<number>
+  ) => {
+    const trans = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [192, 0],
+    });
+
+    const scale = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    });
+
+    return (
+      <View style={styles.deleteContainer}>
+        <Animated.View
+          style={[
+            styles.deleteAction,
+            { transform: [{ translateX: trans }, { scale }] },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => removePlace(dayIndex, placeIndex)}
+          >
+            <Ionicons name="trash-outline" size={24} color="#fff" />
+            <Text style={styles.deleteText}>Delete</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    );
+  };
+
+  const renderDay = ({
+    item: day,
+    index: dayIndex,
+  }: {
+    item: ItineraryDay;
+    index: number;
+  }) => (
     <View style={styles.daySection}>
       <View style={styles.dayHeader}>
         <Text style={styles.dayTitle}>Day {day.day}</Text>
@@ -73,14 +158,23 @@ export default function ItineraryDetailsScreen() {
           <Ionicons name="add" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
-      {day.places.map((place, idx) => (
-        <View style={styles.placeCard} key={place.name + idx}>
-          {getPlaceIcon(place.type)}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.placeName}>{place.name}</Text>
-            <Text style={styles.placeHours}>Open {place.hours}</Text>
+      {day.places.map((place: Place, placeIndex: number) => (
+        <Swipeable
+          key={place.name + placeIndex}
+          renderRightActions={(
+            progress: Animated.AnimatedInterpolation<number>
+          ) => renderRightActions(dayIndex, placeIndex, progress)}
+          rightThreshold={40}
+          overshootRight={false} // prevent swipe past the red delete button
+        >
+          <View style={styles.placeCard}>
+            {getPlaceIcon(place.type)}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.placeName}>{place.name}</Text>
+              <Text style={styles.placeHours}>Open {place.hours}</Text>
+            </View>
           </View>
-        </View>
+        </Swipeable>
       ))}
     </View>
   );
@@ -91,6 +185,9 @@ export default function ItineraryDetailsScreen() {
     latitudeDelta: 0.06,
     longitudeDelta: 0.04,
   };
+
+  // Derive allPlaces from itinerary state
+  const allPlaces = itinerary.flatMap((day) => day.places);
 
   return (
     <View style={{ flex: 1 }}>
@@ -124,35 +221,38 @@ export default function ItineraryDetailsScreen() {
         alwaysOpen={screenHeight * 0.23}
         adjustToContentHeight={false}
         modalHeight={screenHeight * 0.93}
-        scrollViewProps={{
-          showsVerticalScrollIndicator: false,
-        }}
-      >
-        <FlatList
-          data={demoItinerary}
-          renderItem={renderDay}
-          keyExtractor={(item) => "day" + item.day}
-          contentContainerStyle={{
+        flatListProps={{
+          data: itinerary,
+          renderItem: renderDay,
+          keyExtractor: (item) => "day" + item.day,
+          contentContainerStyle: {
             paddingBottom: 85,
             paddingHorizontal: 14,
             paddingTop: 14,
-          }}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={
-            <View style={styles.addDayContainer}>
-              <TouchableOpacity style={styles.addDayButton}>
-                <Ionicons
-                  name="add"
-                  size={22}
-                  color="#fff"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.addDayText}>Add Day</Text>
-              </TouchableOpacity>
-            </View>
-          }
-        />
-      </Modalize>
+          },
+          showsVerticalScrollIndicator: false,
+          ListFooterComponent: (
+            <>
+              <View style={styles.addDayContainer}>
+                <TouchableOpacity style={styles.addDayButton}>
+                  <Ionicons
+                    name="add"
+                    size={22}
+                    color="#fff"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.addDayText}>Add Day</Text>
+                </TouchableOpacity>
+              </View>
+              {loading && (
+                <Text style={{ textAlign: "center", marginTop: 20 }}>
+                  Loading...
+                </Text>
+              )}
+            </>
+          ),
+        }}
+      />
     </View>
   );
 }
@@ -253,8 +353,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     shadowColor: "#000",
     shadowOpacity: 0.18, // increase shadow opacity
-    shadowRadius: 14, // increase shadow radius
-    shadowOffset: { width: 0, height: 6 }, // increase shadow offset
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 }, // increase shadow offset
     elevation: 6, // increase elevation for Android
   },
   placeName: {
@@ -296,5 +396,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     letterSpacing: 0.4,
+  },
+  deleteContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    backgroundColor: "#ff4757",
+    marginBottom: 12,
+    borderRadius: 22,
+    paddingRight: 20,
+  },
+  deleteAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 54, // smaller width
+    paddingLeft: 20,
+    height: "100%",
+  },
+  deleteButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    width: 44, // smaller button
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#ff4757",
+    alignSelf: "center",
+  },
+  deleteText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+    textAlign: "center",
   },
 });

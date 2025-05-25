@@ -3,29 +3,42 @@ import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/Colors";
-import initialItineraries, { Itinerary } from "../data/itineraries";
+import { getAllItineraries, addItinerary } from "../data/itineraryDb";
+import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 
 export default function ItineraryScreen() {
   const router = useRouter();
-  // Use state for itineraries so you can add new ones
-  const [itineraries, setItineraries] =
-    useState<Itinerary[]>(initialItineraries);
+  const [itineraries, setItineraries] = useState<
+    (Itinerary & { id: string })[]
+  >([]);
   const modalizeRef = useRef<any>(null);
 
+  React.useEffect(() => {
+    getAllItineraries().then((data) => setItineraries(data));
+  }, []);
+
   const openSheet = () => modalizeRef.current?.open();
-  const handleItineraryPress = (itinerary: Itinerary) => {
+  const handleItineraryPress = (itinerary: Itinerary & { id: string }) => {
     router.push({
       pathname: "/itineraryDetails",
       params: { city: itinerary.city },
     });
   };
 
-  const handleAddItinerary = (name: string, days: number, list: string) => {
-    setItineraries((prev) => [
-      ...prev,
-      { city: name, days, locations: Math.floor(Math.random() * 25) + 3 }, // Or get actual value
-    ]);
+  const handleAddItinerary = async (
+    name: string,
+    days: number,
+    list: string
+  ) => {
+    const newItinerary = {
+      city: name,
+      days,
+      locations: Math.floor(Math.random() * 25) + 3, // Or get actual value
+      details: [], // You may want to fetch or pass details from the list
+    };
+    await addItinerary(newItinerary);
+    getAllItineraries().then((data) => setItineraries(data));
     modalizeRef.current?.close();
   };
 
@@ -107,11 +120,7 @@ export default function ItineraryScreen() {
         <Ionicons name="add" size={44} color={Colors.card} />
       </Pressable>
 
-      <AddItineraryBottomSheet
-        ref={modalizeRef}
-        onAdd={handleAddItinerary}
-        availableLists={["Favorites", "Google List 1", "Google List 2"]}
-      />
+      <AddItineraryBottomSheet ref={modalizeRef} onAdd={handleAddItinerary} />
     </View>
   );
 }

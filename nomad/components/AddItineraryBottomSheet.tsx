@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Modalize } from "react-native-modalize";
 import Colors from "@/constants/Colors";
-import demoGoogleMapsLists from "../app/data/demoGoogleMapsLists";
+import { getAllGoogleMapsLists } from "../app/data/googleMapsDb";
 
 type AddItineraryBottomSheetProps = {
   onAdd: (name: string, days: number, list: string) => void;
@@ -20,12 +20,18 @@ const AddItineraryBottomSheet = forwardRef<
   Modalize,
   AddItineraryBottomSheetProps
 >(({ onAdd }, ref) => {
-  const availableLists = demoGoogleMapsLists.map((list) => list.listName);
+  const [availableLists, setAvailableLists] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [days, setDays] = useState("");
   const [list, setList] = useState("");
   const [error, setError] = useState("");
   const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  React.useEffect(() => {
+    getAllGoogleMapsLists().then((lists) => {
+      setAvailableLists(lists.map((l: any) => l.listName));
+    });
+  }, []);
 
   const handleAdd = () => {
     if (!name.trim()) {
