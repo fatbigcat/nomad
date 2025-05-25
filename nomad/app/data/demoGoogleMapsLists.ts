@@ -1,0 +1,258 @@
+export type GoogleMapsPlace = {
+  name: string;
+  lat: number;
+  lng: number;
+  hours: string;
+  type: "landmark" | "museum" | "food" | "park" | "store";
+};
+
+export type GoogleMapsList = {
+  city: string;
+  listName: string;
+  places: GoogleMapsPlace[];
+};
+
+export const demoGoogleMapsLists: GoogleMapsList[] = [
+  {
+    city: "Paris",
+    listName: "Paris Highlights",
+    places: [
+      {
+        name: "Eiffel Tower",
+        lat: 48.8584,
+        lng: 2.2945,
+        hours: "09:00-23:45",
+        type: "landmark",
+      },
+      {
+        name: "Louvre Museum",
+        lat: 48.8606,
+        lng: 2.3376,
+        hours: "09:00-18:00",
+        type: "museum",
+      },
+      {
+        name: "Le Marais",
+        lat: 48.8588,
+        lng: 2.3622,
+        hours: "Open 24h",
+        type: "landmark",
+      },
+      {
+        name: "Luxembourg Gardens",
+        lat: 48.8462,
+        lng: 2.3372,
+        hours: "07:30-21:30",
+        type: "park",
+      },
+      {
+        name: "Angelina Paris",
+        lat: 48.8662,
+        lng: 2.3285,
+        hours: "08:00-19:00",
+        type: "food",
+      },
+      {
+        name: "Galeries Lafayette",
+        lat: 48.872,
+        lng: 2.3325,
+        hours: "10:00-20:00",
+        type: "store",
+      },
+    ],
+  },
+  {
+    city: "London",
+    listName: "London Must-Sees",
+    places: [
+      {
+        name: "British Museum",
+        lat: 51.5194,
+        lng: -0.127,
+        hours: "10:00-17:00",
+        type: "museum",
+      },
+      {
+        name: "Tower of London",
+        lat: 51.5081,
+        lng: -0.0759,
+        hours: "09:00-17:30",
+        type: "landmark",
+      },
+      {
+        name: "Hyde Park",
+        lat: 51.5073,
+        lng: -0.1657,
+        hours: "05:00-00:00",
+        type: "park",
+      },
+      {
+        name: "Borough Market",
+        lat: 51.5055,
+        lng: -0.091,
+        hours: "10:00-17:00",
+        type: "food",
+      },
+      {
+        name: "Harrods",
+        lat: 51.4994,
+        lng: -0.1633,
+        hours: "10:00-21:00",
+        type: "store",
+      },
+      {
+        name: "Sky Garden",
+        lat: 51.5107,
+        lng: -0.0837,
+        hours: "10:00-18:00",
+        type: "landmark",
+      },
+    ],
+  },
+  {
+    city: "Rome",
+    listName: "Rome Essentials",
+    places: [
+      {
+        name: "Colosseum",
+        lat: 41.8902,
+        lng: 12.4922,
+        hours: "09:00-19:00",
+        type: "landmark",
+      },
+      {
+        name: "Pantheon",
+        lat: 41.8986,
+        lng: 12.4768,
+        hours: "09:00-19:00",
+        type: "landmark",
+      },
+      {
+        name: "Vatican Museums",
+        lat: 41.9065,
+        lng: 12.4536,
+        hours: "09:00-18:00",
+        type: "museum",
+      },
+      {
+        name: "Trastevere",
+        lat: 41.8897,
+        lng: 12.4701,
+        hours: "Open 24h",
+        type: "landmark",
+      },
+      {
+        name: "Villa Borghese",
+        lat: 41.9142,
+        lng: 12.4923,
+        hours: "07:00-20:00",
+        type: "park",
+      },
+      {
+        name: "Roscioli",
+        lat: 41.8932,
+        lng: 12.4757,
+        hours: "12:30-23:00",
+        type: "food",
+      },
+    ],
+  },
+  {
+    city: "Berlin",
+    listName: "Berlin Top Spots",
+    places: [
+      {
+        name: "Brandenburg Gate",
+        lat: 52.5163,
+        lng: 13.3777,
+        hours: "Open 24h",
+        type: "landmark",
+      },
+      {
+        name: "Museum Island",
+        lat: 52.5169,
+        lng: 13.401,
+        hours: "10:00-18:00",
+        type: "museum",
+      },
+      {
+        name: "Tempelhofer Feld",
+        lat: 52.473,
+        lng: 13.4039,
+        hours: "06:00-22:30",
+        type: "park",
+      },
+      {
+        name: "Markthalle Neun",
+        lat: 52.4997,
+        lng: 13.4252,
+        hours: "12:00-20:00",
+        type: "food",
+      },
+      {
+        name: "KaDeWe",
+        lat: 52.503,
+        lng: 13.3402,
+        hours: "10:00-20:00",
+        type: "store",
+      },
+      {
+        name: "East Side Gallery",
+        lat: 52.505,
+        lng: 13.4396,
+        hours: "Open 24h",
+        type: "landmark",
+      },
+    ],
+  },
+  {
+    city: "Barcelona",
+    listName: "Barcelona Favorites",
+    places: [
+      {
+        name: "Sagrada Família",
+        lat: 41.4036,
+        lng: 2.1744,
+        hours: "09:00-20:00",
+        type: "landmark",
+      },
+      {
+        name: "Park Güell",
+        lat: 41.4145,
+        lng: 2.1527,
+        hours: "09:30-19:30",
+        type: "park",
+      },
+      {
+        name: "La Boqueria Market",
+        lat: 41.3826,
+        lng: 2.1722,
+        hours: "08:00-20:30",
+        type: "food",
+      },
+      {
+        name: "Casa Batlló",
+        lat: 41.3917,
+        lng: 2.1649,
+        hours: "09:00-20:00",
+        type: "landmark",
+      },
+      {
+        name: "Museu Picasso",
+        lat: 41.3852,
+        lng: 2.18,
+        hours: "10:00-19:00",
+        type: "museum",
+      },
+      {
+        name: "El Corte Inglés",
+        lat: 41.387,
+        lng: 2.1699,
+        hours: "10:00-22:00",
+        type: "store",
+      },
+    ],
+  },
+];
+
+export default demoGoogleMapsLists;

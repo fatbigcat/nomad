@@ -10,159 +10,155 @@ import {
 } from "react-native";
 import { Modalize } from "react-native-modalize";
 import Colors from "@/constants/Colors";
+import demoGoogleMapsLists from "../app/data/demoGoogleMapsLists";
 
 type AddItineraryBottomSheetProps = {
   onAdd: (name: string, days: number, list: string) => void;
-  availableLists?: string[];
 };
 
 const AddItineraryBottomSheet = forwardRef<
   Modalize,
   AddItineraryBottomSheetProps
->(
-  (
-    { onAdd, availableLists = ["Favorites", "Google List 1", "Google List 2"] },
-    ref
-  ) => {
-    const [name, setName] = useState("");
-    const [days, setDays] = useState("");
-    const [list, setList] = useState("");
-    const [error, setError] = useState("");
-    const [dropdownVisible, setDropdownVisible] = useState(false);
+>(({ onAdd }, ref) => {
+  const availableLists = demoGoogleMapsLists.map((list) => list.listName);
+  const [name, setName] = useState("");
+  const [days, setDays] = useState("");
+  const [list, setList] = useState("");
+  const [error, setError] = useState("");
+  const [dropdownVisible, setDropdownVisible] = useState(false);
 
-    const handleAdd = () => {
-      if (!name.trim()) {
-        setError("Please enter a name.");
-        return;
-      }
-      if (!list.trim()) {
-        setError("Please choose a list.");
-        return;
-      }
-      if (!days.trim() || isNaN(Number(days)) || Number(days) < 1) {
-        setError("Please enter a valid number of days.");
-        return;
-      }
-      setError("");
-      onAdd(name.trim(), Number(days), list.trim());
-      setName("");
-      setDays("");
-      setList("");
-    };
+  const handleAdd = () => {
+    if (!name.trim()) {
+      setError("Please enter a name.");
+      return;
+    }
+    if (!list.trim()) {
+      setError("Please choose a list.");
+      return;
+    }
+    if (!days.trim() || isNaN(Number(days)) || Number(days) < 1) {
+      setError("Please enter a valid number of days.");
+      return;
+    }
+    setError("");
+    onAdd(name.trim(), Number(days), list.trim());
+    setName("");
+    setDays("");
+    setList("");
+  };
 
-    return (
-      <Modalize
-        ref={ref}
-        adjustToContentHeight
-        handleStyle={{ backgroundColor: "#CCC" }}
-        modalStyle={{
-          borderTopLeftRadius: 22,
-          borderTopRightRadius: 22,
-          backgroundColor: Colors.card,
+  return (
+    <Modalize
+      ref={ref}
+      adjustToContentHeight
+      handleStyle={{ backgroundColor: "#CCC" }}
+      modalStyle={{
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+        backgroundColor: Colors.card,
+      }}
+      withHandle={true}
+      keyboardAvoidingBehavior="padding"
+      keyboardAvoidingOffset={0}
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="always"
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingBottom: 0,
+          paddingTop: 16,
         }}
-        withHandle={true}
-        keyboardAvoidingBehavior="padding"
-        keyboardAvoidingOffset={0}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          keyboardShouldPersistTaps="always"
-          contentContainerStyle={{
-            paddingHorizontal: 24,
-            paddingBottom: 0,
-            paddingTop: 16,
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <View style={styles.grabber} />
+          <Text style={styles.title}>Create new itinerary</Text>
+        </View>
+
+        <TextInput
+          placeholder="Name"
+          placeholderTextColor={Colors.border}
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+        />
+
+        {/* Dropdown for Choose List */}
+        <TouchableOpacity
+          style={[
+            styles.input,
+            {
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            },
+          ]}
+          onPress={() => {
+            setDropdownVisible(!dropdownVisible);
+            if (!dropdownVisible) {
+              Keyboard.dismiss();
+            }
           }}
-          showsVerticalScrollIndicator={false}
+          activeOpacity={0.7}
         >
-          <View style={{ alignItems: "center", marginBottom: 16 }}>
-            <View style={styles.grabber} />
-            <Text style={styles.title}>Create new itinerary</Text>
-          </View>
-
-          <TextInput
-            placeholder="Name"
-            placeholderTextColor={Colors.border}
-            style={styles.input}
-            value={name}
-            onChangeText={setName}
-            autoFocus
-          />
-
-          {/* Dropdown for Choose List */}
-          <TouchableOpacity
-            style={[
-              styles.input,
-              {
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              },
-            ]}
-            onPress={() => {
-              setDropdownVisible(!dropdownVisible);
-              if (!dropdownVisible) {
-                Keyboard.dismiss();
-              }
+          <Text
+            style={{
+              color: list ? Colors.text : Colors.border,
+              fontSize: 18,
             }}
-            activeOpacity={0.7}
           >
-            <Text
-              style={{
-                color: list ? Colors.text : Colors.border,
-                fontSize: 18,
-              }}
-            >
-              {list || "Choose list"}
-            </Text>
-            <Text style={{ color: Colors.border, fontSize: 18 }}>
-              {dropdownVisible ? "▲" : "▼"}
-            </Text>
-          </TouchableOpacity>
-          {dropdownVisible && (
-            <View style={styles.dropdownMenu}>
-              {availableLists.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setList(item);
-                    setDropdownVisible(false);
-                  }}
-                >
-                  <Text style={styles.dropdownItemText}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+            {list || "Choose list"}
+          </Text>
+          <Text style={{ color: Colors.border, fontSize: 18 }}>
+            {dropdownVisible ? "▲" : "▼"}
+          </Text>
+        </TouchableOpacity>
+        {dropdownVisible && (
+          <View style={styles.dropdownMenu}>
+            {availableLists.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setList(item);
+                  setDropdownVisible(false);
+                }}
+              >
+                <Text style={styles.dropdownItemText}>{item}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
-          <TextInput
-            placeholder="Days"
-            placeholderTextColor={Colors.border}
-            style={styles.input}
-            keyboardType="numeric"
-            value={days}
-            onChangeText={setDays}
-            maxLength={2}
-          />
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <TextInput
+          placeholder="Days"
+          placeholderTextColor={Colors.border}
+          style={styles.input}
+          keyboardType="numeric"
+          value={days}
+          onChangeText={setDays}
+          maxLength={2}
+        />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity
-            style={[
-              styles.addButton,
-              !(name && days && list) && { backgroundColor: Colors.border },
-            ]}
-            disabled={!(name && days && list)}
-            onPress={handleAdd}
-          >
-            <Text style={styles.addButtonText}>Add itinerary</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.addButton,
+            !(name && days && list) && { backgroundColor: Colors.border },
+          ]}
+          disabled={!(name && days && list)}
+          onPress={handleAdd}
+        >
+          <Text style={styles.addButtonText}>Add itinerary</Text>
+        </TouchableOpacity>
 
-          {/* Add a spacer to guarantee extra room above keyboard */}
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </Modalize>
-    );
-  }
-);
+        {/* Add a spacer to guarantee extra room above keyboard */}
+        <View style={{ height: 120 }} />
+      </ScrollView>
+    </Modalize>
+  );
+});
 
 const styles = StyleSheet.create({
   grabber: {

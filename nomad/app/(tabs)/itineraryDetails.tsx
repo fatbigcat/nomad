@@ -138,20 +138,20 @@ export default function ItineraryDetailsScreen() {
             paddingTop: 14,
           }}
           showsVerticalScrollIndicator={false}
+          ListFooterComponent={
+            <View style={styles.addDayContainer}>
+              <TouchableOpacity style={styles.addDayButton}>
+                <Ionicons
+                  name="add"
+                  size={22}
+                  color="#fff"
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.addDayText}>Add Day</Text>
+              </TouchableOpacity>
+            </View>
+          }
         />
-        <View style={styles.addDayContainer}>
-          <TouchableOpacity style={styles.addDayButton}>
-            <Ionicons
-              name="add"
-              size={22}
-              color="#fff"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.addDayText}>Add Day</Text>
-          </TouchableOpacity>
-        </View>
-        {/* Spacer to lift Add Day button higher above the bottom */}
-        <View style={{ height: 40 }} />
       </Modalize>
     </View>
   );
@@ -194,19 +194,19 @@ const styles = StyleSheet.create({
     textAlign: "center", // ensure text is centered
   },
   modal: {
-    backgroundColor: "#fcf9f6",
+    backgroundColor: Colors.card,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     shadowColor: "#000",
     shadowOpacity: 0.12,
-    shadowRadius: 12,
+    shadowRadius: 13,
     shadowOffset: { width: 0, height: -4 },
     elevation: 10,
     paddingHorizontal: 0,
     borderWidth: 0,
   },
   handle: {
-    backgroundColor: Colors.accentLight,
+    backgroundColor: Colors.primary,
     width: 48,
     height: 6,
     borderRadius: 3,
@@ -272,9 +272,8 @@ const styles = StyleSheet.create({
   addDayContainer: {
     width: "100%",
     alignItems: "center",
-    marginTop: 0,
+    marginTop: 20,
     marginBottom: 20,
-    position: "absolute",
     bottom: 0,
     left: 0,
   },
