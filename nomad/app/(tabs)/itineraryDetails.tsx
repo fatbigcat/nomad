@@ -406,18 +406,11 @@ export default function ItineraryDetailsScreen() {
       return;
     }
     setAddLocationMode({ active: true, dayIndex, places: availablePlaces });
-    // Do NOT set alwaysOpenValue to 0 here; keep it at the default so the sheet never closes completely
-    setAlwaysOpenValue(screenHeight * 0.23);
-    setTimeout(() => {
-      modalizeRef.current?.open();
-    }, 10);
   };
 
   const handleAddLocationBack = () => {
     setAddLocationMode({ active: false, dayIndex: null, places: [] });
     setSelectedLocations([]);
-    // Do NOT set alwaysOpenValue to 0 here; keep it at the default so the sheet never closes completely
-    setAlwaysOpenValue(screenHeight * 0.23);
   };
 
   const getSortedPlaces = (places: GoogleMapsPlace[]) => {
@@ -462,7 +455,9 @@ export default function ItineraryDetailsScreen() {
   React.useLayoutEffect(() => {
     navigation.setOptions({
       title: cityTitle,
-      headerRight: () => <HeaderRight editMode={editMode} onPress={handleToggleEditMode} />,
+      headerRight: () => (
+        <HeaderRight editMode={editMode} onPress={handleToggleEditMode} />
+      ),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityTitle, editMode]);
