@@ -4,28 +4,25 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
   Dimensions,
   Animated,
   Alert,
-  ActionSheetIOS,
-  Platform,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Modalize } from "react-native-modalize";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/Colors";
-import { getAllItineraries, addItinerary } from "../data/itineraryDb";
+import { getAllItineraries, updateItinerary } from "../data/itineraryDb";
 import {
   getAllGoogleMapsLists,
   GoogleMapsList,
   GoogleMapsPlace,
 } from "../data/googleMapsDb";
-import { useLocalSearchParams } from "expo-router";
 import LocationPickerScreen, {
   LocationSort,
 } from "../../components/LocationPickerScreen";
+import { Stack, useNavigation, useLocalSearchParams } from "expo-router";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -81,69 +78,268 @@ function getPlaceIcon(type: Place["type"]) {
   );
 }
 
+// Utility: convert any Place to a Firestore-compatible Place (only supported types)
+function toFirestorePlace(
+  p: any
+): import("../data/demoItinerary").Place | null {
+  if (
+    p.type === "food" ||
+    p.type === "museum" ||
+    p.type === "store" ||
+    p.type === "landmark" ||
+    p.type === "park"
+  ) {
+    return {
+      name: p.name,
+      type: p.type,
+      hours: p.hours,
+      lat: p.lat,
+      lng: p.lng,
+    };
+  }
+  return null;
+}
+
+// Type guard for Firestore Place
+function isFirestorePlace(p: any): p is import("../data/demoItinerary").Place {
+  return (
+    !!p &&
+    typeof p.name === "string" &&
+    typeof p.type === "string" &&
+    typeof p.hours === "string" &&
+    typeof p.lat === "number" &&
+    typeof p.lng === "number"
+  );
+}
+
+// Helper to get itinerary for a city
+function getItineraryForCity(all: any[], city: string): any | undefined {
+  return all.find((it) => it.city.toLowerCase() === city.toLowerCase());
+}
+
+function EditListButton({
+  editMode,
+  onPress,
+}: {
+  editMode: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.editListBtn}
+      onPress={onPress}
+      accessibilityLabel={editMode ? "Done editing list" : "Edit list"}
+    >
+      <Ionicons
+        name={editMode ? "close" : "create-outline"}
+        size={24}
+        color="#fff"
+      />
+    </TouchableOpacity>
+  );
+}
+
+// --- Reusable PlaceCard component ---
+function PlaceCard({
+  name,
+  hours,
+  isSelected,
+  onPress,
+  showCheckmark,
+  disabled,
+  style,
+}: {
+  name: string;
+  hours: string;
+  isSelected?: boolean;
+  onPress?: () => void;
+  showCheckmark?: boolean;
+  disabled?: boolean;
+  style?: any;
+}) {
+  return (
+    <TouchableOpacity
+      style={[
+        styles.placeCard,
+        isSelected && {
+          borderColor: Colors.accent,
+          borderWidth: 2,
+          backgroundColor: "#e6f7fa",
+        },
+        style,
+      ]}
+      activeOpacity={onPress ? 0.7 : 1}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.placeName}>{name}</Text>
+        <Text style={styles.placeHours}>Open {hours}</Text>
+      </View>
+      {showCheckmark && isSelected && (
+        <Ionicons
+          name="checkmark-circle"
+          size={22}
+          color={Colors.accent}
+          style={{ marginLeft: 8 }}
+        />
+      )}
+    </TouchableOpacity>
+  );
+}
+
+const MemoizedEditListButton = React.memo(EditListButton);
+
+// --- Refactor fetchItinerary to avoid deep nesting ---
+function buildFullItinerary(match: any): ItineraryDay[] {
+  if (match && match.days) {
+    const numDays = match.days;
+    const details = match.details || [];
+    return Array.from({ length: numDays }, (_, i) => {
+      const found = details.find((d: ItineraryDay) => d.day === i + 1);
+      return found || { day: i + 1, places: [] };
+    });
+  }
+  return [];
+}
+
+// Define HeaderRight outside the component
+function HeaderRight({
+  editMode,
+  onPress,
+}: {
+  editMode: boolean;
+  onPress: () => void;
+}) {
+  return <MemoizedEditListButton editMode={editMode} onPress={onPress} />;
+}
+
 export default function ItineraryDetailsScreen() {
+  const navigation = useNavigation();
   const modalizeRef = useRef<Modalize>(null);
   const { city } = useLocalSearchParams();
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [loading, setLoading] = useState(true);
-  const [locationPicker, setLocationPicker] = useState<{
-    visible: boolean;
-    dayIndex: number | null;
-    places: GoogleMapsPlace[];
-    startPoint?: GoogleMapsPlace;
-  }>({ visible: false, dayIndex: null, places: [] });
-  // Add a state to control the add location mode
   const [addLocationMode, setAddLocationMode] = useState<{
     active: boolean;
     dayIndex: number | null;
     places: GoogleMapsPlace[];
     startPoint?: GoogleMapsPlace;
   }>({ active: false, dayIndex: null, places: [] });
-  // Add location sort state
   const [locationSort, setLocationSort] = useState<LocationSort>("opening");
   const [locationStart, setLocationStart] = useState<
     GoogleMapsPlace | undefined
   >(undefined);
   const [alwaysOpenValue, setAlwaysOpenValue] = useState(screenHeight * 0.23);
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [selectedForDelete, setSelectedForDelete] = useState<{
+    [key: string]: boolean;
+  }>({});
+
+  // Multi-select state for add location sheet
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+
+  // Handler to toggle selection in add location sheet
+  const handleToggleLocation = (name: string) => {
+    setSelectedLocations((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    );
+  };
+
+  // Handler to add multiple selected locations to the itinerary
+  const handleAddMultipleLocations = () => {
+    if (addLocationMode.dayIndex === null || selectedLocations.length === 0)
+      return;
+    const selectedPlaces = addLocationMode.places.filter((p) =>
+      selectedLocations.includes(p.name)
+    );
+    const firestorePlaces = selectedPlaces
+      .map(toFirestorePlace)
+      .filter(isFirestorePlace);
+    if (firestorePlaces.length === 0) return;
+    const updated = itinerary.map((day, idx) =>
+      idx === addLocationMode.dayIndex
+        ? { ...day, places: [...day.places, ...firestorePlaces] }
+        : day
+    );
+    setItinerary(updated);
+    setAddLocationMode({ active: false, dayIndex: null, places: [] });
+    setSelectedLocations([]);
+    setAlwaysOpenValue(screenHeight * 0.23);
+    (async () => {
+      const all = await getAllItineraries();
+      const match = all.find(
+        (it) => it.city.toLowerCase() === (city?.toString() || "").toLowerCase()
+      );
+      if (match && match.id) {
+        const filteredDetails = updated.map((day) => ({
+          ...day,
+          places: day.places.map(toFirestorePlace).filter(isFirestorePlace),
+        }));
+        const newLocationsCount = filteredDetails.reduce(
+          (acc, d) => acc + d.places.length,
+          0
+        );
+        await updateItinerary(match.id, {
+          details:
+            filteredDetails as import("../data/demoItinerary").ItineraryDay[],
+          locations: newLocationsCount,
+        });
+      }
+    })();
+  };
 
   // Fetch itinerary from Firestore on mount
   useEffect(() => {
-    async function fetchItinerary() {
-      setLoading(true);
-      try {
-        const all = await getAllItineraries();
-        // For now, just use the first itinerary (improve as needed)
-        if (all.length > 0 && all[0].days) {
-          // Ensure we have an array for each day, even if no places
-          const numDays = all[0].days;
-          const details = all[0].details || [];
-          const fullItinerary = Array.from({ length: numDays }, (_, i) => {
-            const found = details.find((d: ItineraryDay) => d.day === i + 1);
-            return found || { day: i + 1, places: [] };
-          });
-          setItinerary(fullItinerary);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchItinerary();
-    // Removed modalizeRef.current?.open() from here
-  }, []);
+    setLoading(true);
+    getAllItineraries().then((all) => {
+      const itineraryCity = city?.toString() || "";
+      const match = getItineraryForCity(all, itineraryCity);
+      setItinerary(buildFullItinerary(match));
+      setLoading(false);
+    });
+  }, [city]);
 
   const removePlace = (dayIndex: number, placeIndex: number) => {
-    setItinerary((prevItinerary) =>
-      prevItinerary.map((day: ItineraryDay, idx: number) =>
-        idx === dayIndex
-          ? {
-              ...day,
-              places: day.places.filter(
-                (_: Place, placeIdx: number) => placeIdx !== placeIndex
-              ),
-            }
-          : day
-      )
+    const updated = itinerary.map((day, idx) =>
+      idx === dayIndex
+        ? {
+            ...day,
+            places: day.places.filter((_, placeIdx) => placeIdx !== placeIndex),
+          }
+        : day
     );
+    setItinerary(updated);
+    updateItineraryInFirestore(city, updated);
+  };
+
+  const getFirestoreDetailsAndCount = (days: ItineraryDay[]) => {
+    const details = days.map((day) => ({
+      ...day,
+      places: day.places.map(toFirestorePlace).filter(isFirestorePlace),
+    }));
+    const count = details.reduce((acc, d) => acc + d.places.length, 0);
+    return { details, count };
+  };
+
+  const updateItineraryInFirestore = async (
+    city: string | string[] | undefined,
+    updated: ItineraryDay[]
+  ) => {
+    const all = await getAllItineraries();
+    const match = all.find(
+      (it) => it.city.toLowerCase() === (city?.toString() || "").toLowerCase()
+    );
+    if (match && match.id) {
+      const { details: filteredDetails, count: newLocationsCount } =
+        getFirestoreDetailsAndCount(updated);
+      await updateItinerary(match.id, {
+        details:
+          filteredDetails as import("../data/demoItinerary").ItineraryDay[],
+        locations: newLocationsCount,
+      });
+    }
   };
 
   const renderRightActions = (
@@ -210,32 +406,17 @@ export default function ItineraryDetailsScreen() {
       return;
     }
     setAddLocationMode({ active: true, dayIndex, places: availablePlaces });
-    setAlwaysOpenValue(0);
+    // Do NOT set alwaysOpenValue to 0 here; keep it at the default so the sheet never closes completely
+    setAlwaysOpenValue(screenHeight * 0.23);
     setTimeout(() => {
       modalizeRef.current?.open();
     }, 10);
   };
 
-  const handleLocationSelect = (place: GoogleMapsPlace) => {
-    if (addLocationMode.dayIndex === null) return;
-    setItinerary((prev) =>
-      prev.map((day, idx) =>
-        idx === addLocationMode.dayIndex
-          ? { ...day, places: [...day.places, place] }
-          : day
-      )
-    );
-    setAddLocationMode({ active: false, dayIndex: null, places: [] });
-    setAlwaysOpenValue(screenHeight * 0.23);
-    // Optionally update Firestore here
-  };
-
-  const handleSetStartPoint = (place: GoogleMapsPlace) => {
-    setAddLocationMode((prev) => ({ ...prev, startPoint: place }));
-  };
-
   const handleAddLocationBack = () => {
     setAddLocationMode({ active: false, dayIndex: null, places: [] });
+    setSelectedLocations([]);
+    // Do NOT set alwaysOpenValue to 0 here; keep it at the default so the sheet never closes completely
     setAlwaysOpenValue(screenHeight * 0.23);
   };
 
@@ -259,54 +440,6 @@ export default function ItineraryDetailsScreen() {
     return places;
   };
 
-  const renderDay = ({
-    item: day,
-    index: dayIndex,
-  }: {
-    item: ItineraryDay;
-    index: number;
-  }) => (
-    <View style={styles.daySection}>
-      <View style={styles.dayHeader}>
-        <Text style={styles.dayTitle}>Day {day.day}</Text>
-        <TouchableOpacity
-          style={styles.addActivityBtn}
-          onPress={() => handleAddLocation(dayIndex)}
-        >
-          <Ionicons name="add" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-      {/* Always render at least the empty state for each day */}
-      {day.places.length === 0 && (
-        <View
-          style={[styles.placeCard, { opacity: 0.5, justifyContent: "center" }]}
-        >
-          <Text style={{ color: Colors.primary, fontStyle: "italic" }}>
-            No locations yet
-          </Text>
-        </View>
-      )}
-      {day.places.map((place: Place, placeIndex: number) => (
-        <Swipeable
-          key={place.name + placeIndex}
-          renderRightActions={(
-            progress: Animated.AnimatedInterpolation<number>
-          ) => renderRightActions(dayIndex, placeIndex, progress)}
-          rightThreshold={40}
-          overshootRight={false}
-        >
-          <View style={styles.placeCard}>
-            {getPlaceIcon(place.type)}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.placeName}>{place.name}</Text>
-              <Text style={styles.placeHours}>Open {place.hours}</Text>
-            </View>
-          </View>
-        </Swipeable>
-      ))}
-    </View>
-  );
-
   const initialRegion = {
     latitude: 48.864716,
     longitude: 2.349014,
@@ -317,146 +450,371 @@ export default function ItineraryDetailsScreen() {
   // Derive allPlaces from itinerary state
   const allPlaces = itinerary.flatMap((day) => day.places);
 
+  // Edit mode handlers
+  const handleToggleEditMode = () => {
+    setEditMode((prev) => !prev);
+    setSelectedForDelete({});
+  };
+
+  const cityTitle = Array.isArray(city) ? city[0] : city || "Itinerary";
+
+  // Move headerRight definition out of the render tree
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      title: cityTitle,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityTitle]);
+
+  // Remove all selected places for a day
+  function removeSelectedPlacesForDay(dayIndex: number) {
+    const updated = itinerary.map((d: ItineraryDay, idx: number) => {
+      if (idx !== dayIndex) return d;
+      return {
+        ...d,
+        places: d.places.filter(
+          (_: Place, placeIdx: number) =>
+            !selectedForDelete[`${dayIndex}-${placeIdx}`]
+        ),
+      };
+    });
+    setItinerary(updated);
+    setSelectedForDelete((prev: { [key: string]: boolean }) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key: string) => {
+        if (key.startsWith(`${dayIndex}-`)) delete next[key];
+      });
+      return next;
+    });
+    updateItineraryInFirestore(city, updated);
+  }
+
+  // Toggle selection for a place in edit mode
+  function handleToggleLocationDelete(dayIndex: number, placeIndex: number) {
+    const key = `${dayIndex}-${placeIndex}`;
+    setSelectedForDelete((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   return (
-    <View style={{ flex: 1 }}>
-      {/* MAP */}
-      <MapView
-        style={StyleSheet.absoluteFill}
-        initialRegion={initialRegion}
-        customMapStyle={mapStyle}
-      >
-        {allPlaces.map((place, idx) => (
-          <Marker
-            key={place.name + idx}
-            coordinate={{ latitude: place.lat, longitude: place.lng }}
-            title={place.name}
-            description={place.hours}
-            pinColor="#1499b2"
+    <>
+      {/* Remove Stack.Screen options prop for headerRight, as it's now set in useLayoutEffect */}
+      <Stack.Screen options={{ title: cityTitle }} />
+      <View style={{ flex: 1, position: "relative" }}>
+        {/* SCREEN TITLE AND EDIT BUTTON */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: 32,
+            marginBottom: 8,
+          }}
+        >
+          <Text style={styles.headerCity}>{city || "Itinerary"}</Text>
+          <MemoizedEditListButton
+            editMode={editMode}
+            onPress={handleToggleEditMode}
           />
-        ))}
-      </MapView>
+        </View>
 
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.headerCity}>{city || "Itinerary"}</Text>
-      </View>
+        {/* MAP */}
+        <MapView
+          style={StyleSheet.absoluteFill}
+          initialRegion={initialRegion}
+          customMapStyle={mapStyle}
+        >
+          {allPlaces.map((place, idx) => (
+            <Marker
+              key={place.name + idx}
+              coordinate={{ latitude: place.lat, longitude: place.lng }}
+              title={place.name}
+              description={place.hours}
+              pinColor="#1499b2"
+            />
+          ))}
+        </MapView>
 
-      {/* MODALIZE SHEET */}
-      <Modalize
-        ref={modalizeRef}
-        modalStyle={styles.modal}
-        handleStyle={styles.handle}
-        alwaysOpen={alwaysOpenValue}
-        adjustToContentHeight={false}
-        modalHeight={screenHeight * 0.93}
-        flatListProps={
-          addLocationMode.active
-            ? {
-                data: getSortedPlaces(addLocationMode.places),
-                renderItem: ({ item }) => (
-                  <TouchableOpacity
-                    style={styles.placeCard}
-                    onPress={() => handleLocationSelect(item)}
-                  >
-                    <View style={styles.iconWrap}>
-                      {item.type === "food" && (
-                        <MaterialCommunityIcons
-                          name="silverware-fork-knife"
-                          size={24}
-                          color={Colors.accent}
-                        />
-                      )}
-                      {item.type === "museum" && (
-                        <MaterialCommunityIcons
-                          name="bank"
-                          size={24}
-                          color={Colors.accent}
-                        />
-                      )}
-                      {item.type === "store" && (
-                        <Ionicons name="cart" size={24} color={Colors.accent} />
-                      )}
-                      {item.type === "landmark" && (
+        {/* MODALIZE SHEET */}
+        <Modalize
+          ref={modalizeRef}
+          modalStyle={styles.modal}
+          handleStyle={styles.handle}
+          alwaysOpen={alwaysOpenValue}
+          adjustToContentHeight={false}
+          modalHeight={screenHeight * 0.93}
+          flatListProps={
+            addLocationMode.active
+              ? {
+                  data: getSortedPlaces(addLocationMode.places),
+                  renderItem: ({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.placeCard,
+                        selectedLocations.includes(item.name) &&
+                          styles.placeCardSelected,
+                        { marginLeft: 0 },
+                      ]}
+                      onPress={() => handleToggleLocation(item.name)}
+                    >
+                      <View style={styles.iconWrap}>
+                        {item.type === "food" && (
+                          <MaterialCommunityIcons
+                            name="silverware-fork-knife"
+                            size={24}
+                            color={Colors.accent}
+                          />
+                        )}
+                        {item.type === "museum" && (
+                          <MaterialCommunityIcons
+                            name="bank"
+                            size={24}
+                            color={Colors.accent}
+                          />
+                        )}
+                        {item.type === "store" && (
+                          <Ionicons
+                            name="cart"
+                            size={24}
+                            color={Colors.accent}
+                          />
+                        )}
+                        {item.type === "landmark" && (
+                          <Ionicons
+                            name="location"
+                            size={24}
+                            color={Colors.accent}
+                          />
+                        )}
+                        {item.type === "park" && (
+                          <MaterialCommunityIcons
+                            name="tree"
+                            size={24}
+                            color={Colors.accent}
+                          />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.placeName}>{item.name}</Text>
+                        <Text style={styles.placeHours}>Open {item.hours}</Text>
+                      </View>
+                      {selectedLocations.includes(item.name) && (
                         <Ionicons
-                          name="location"
-                          size={24}
-                          color={Colors.accent}
-                        />
-                      )}
-                      {item.type === "park" && (
-                        <MaterialCommunityIcons
-                          name="tree"
-                          size={24}
-                          color={Colors.accent}
-                        />
-                      )}
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.placeName}>{item.name}</Text>
-                      <Text style={styles.placeHours}>Open {item.hours}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ),
-                keyExtractor: (item) => item.name,
-                contentContainerStyle: {
-                  paddingHorizontal: 18,
-                  paddingTop: 8,
-                  paddingBottom: 24,
-                },
-                ListHeaderComponent: (
-                  <LocationPickerScreen
-                    places={addLocationMode.places}
-                    sort={locationSort}
-                    setSort={setLocationSort}
-                    start={locationStart}
-                    setStart={setLocationStart}
-                    onBack={handleAddLocationBack}
-                    renderItem={() => null}
-                  />
-                ),
-              }
-            : {
-                data: itinerary,
-                renderItem: renderDay,
-                keyExtractor: (item) => "day" + item.day,
-                contentContainerStyle: {
-                  paddingBottom: 85,
-                  paddingHorizontal: 14,
-                  paddingTop: 14,
-                },
-                showsVerticalScrollIndicator: false,
-                ListFooterComponent: (
-                  <>
-                    <View style={styles.addDayContainer}>
-                      <Text
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "bold",
-                          color: Colors.primary,
-                          marginBottom: 10,
-                        }}
-                      ></Text>
-                      <TouchableOpacity style={styles.addDayButton}>
-                        <Ionicons
-                          name="add"
+                          name="checkmark-circle"
                           size={22}
-                          color="#fff"
-                          style={{ marginRight: 6 }}
+                          color={Colors.accent}
+                          style={{ marginLeft: 8 }}
                         />
-                        <Text style={styles.addDayText}>Add Day</Text>
-                      </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  ),
+                  keyExtractor: (item) => item.name,
+                  contentContainerStyle: {
+                    paddingHorizontal: 18,
+                    paddingTop: 8,
+                    paddingBottom: 100, // extra space for sticky button
+                  },
+                  ListHeaderComponent: (
+                    <LocationPickerScreen
+                      places={addLocationMode.places}
+                      sort={locationSort}
+                      setSort={setLocationSort}
+                      start={locationStart}
+                      setStart={setLocationStart}
+                      onBack={handleAddLocationBack}
+                      renderItem={() => null}
+                      rightAction={
+                        <TouchableOpacity
+                          onPress={handleAddMultipleLocations}
+                          disabled={selectedLocations.length === 0}
+                          style={[
+                            styles.addActivityBtn,
+                            {
+                              marginLeft: 8,
+                              opacity: selectedLocations.length === 0 ? 0.4 : 1,
+                            },
+                          ]}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="checkmark" size={20} color="#fff" />
+                        </TouchableOpacity>
+                      }
+                    />
+                  ),
+                }
+              : {
+                  data: itinerary,
+                  renderItem: ({ item: day, index: dayIndex }) => (
+                    <View style={styles.daySection}>
+                      <View style={styles.dayHeader}>
+                        <Text style={styles.dayTitle}>Day {day.day}</Text>
+                        {editMode ? (
+                          <TouchableOpacity
+                            style={[
+                              styles.addActivityBtn,
+                              { backgroundColor: "#ff4757" },
+                            ]}
+                            onPress={() => removeSelectedPlacesForDay(dayIndex)}
+                            disabled={
+                              !day.places.some(
+                                (_: Place, placeIdx: number) =>
+                                  selectedForDelete[`${dayIndex}-${placeIdx}`]
+                              )
+                            }
+                          >
+                            <Ionicons
+                              name="trash-outline"
+                              size={20}
+                              color="#fff"
+                            />
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.addActivityBtn}
+                            onPress={() => handleAddLocation(dayIndex)}
+                          >
+                            <Ionicons name="add" size={20} color="#fff" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      {/* Always render at least the empty state for each day */}
+                      {day.places.length === 0 && (
+                        <View
+                          style={[
+                            styles.placeCard,
+                            { opacity: 0.5, justifyContent: "center" },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: Colors.primary,
+                              fontStyle: "italic",
+                            }}
+                          >
+                            No locations yet
+                          </Text>
+                        </View>
+                      )}
+                      {day.places.map((place: Place, placeIndex: number) => {
+                        const isSelected =
+                          editMode &&
+                          selectedForDelete[`${dayIndex}-${placeIndex}`];
+                        const cardProps = {
+                          style: [
+                            styles.placeCard,
+                            editMode &&
+                              isSelected && {
+                                borderColor: Colors.accent,
+                                borderWidth: 2,
+                                backgroundColor: "#e6f7fa",
+                              },
+                          ],
+                          activeOpacity: editMode ? 0.7 : 1,
+                          onPress: editMode
+                            ? () =>
+                                handleToggleLocationDelete(dayIndex, placeIndex)
+                            : undefined,
+                          disabled: !editMode,
+                        };
+                        return (
+                          <Swipeable
+                            key={place.name + placeIndex}
+                            renderRightActions={(
+                              progress: Animated.AnimatedInterpolation<number>
+                            ) =>
+                              renderRightActions(dayIndex, placeIndex, progress)
+                            }
+                            rightThreshold={40}
+                            overshootRight={false}
+                            enabled={!editMode}
+                          >
+                            <TouchableOpacity {...cardProps}>
+                              {getPlaceIcon(place.type)}
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.placeName}>
+                                  {place.name}
+                                </Text>
+                                <Text style={styles.placeHours}>
+                                  Open {place.hours}
+                                </Text>
+                              </View>
+                              {editMode && isSelected && (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={22}
+                                  color={Colors.accent}
+                                  style={{ marginLeft: 8 }}
+                                />
+                              )}
+                            </TouchableOpacity>
+                          </Swipeable>
+                        );
+                      })}
                     </View>
-                    {loading && (
-                      <Text style={{ textAlign: "center", marginTop: 20 }}>
-                        Loading...
-                      </Text>
-                    )}
-                  </>
-                ),
-              }
-        }
-      />
-    </View>
+                  ),
+                  keyExtractor: (item) => "day" + item.day,
+                  contentContainerStyle: {
+                    paddingBottom: editMode ? 120 : 85,
+                    paddingHorizontal: 14,
+                    paddingTop: 14,
+                  },
+                  showsVerticalScrollIndicator: false,
+                  ListFooterComponent: (
+                    <>
+                      {editMode && (
+                        <View style={styles.addDayContainer}>
+                          <TouchableOpacity
+                            style={styles.addDayButton}
+                            onPress={() => {
+                              // Add a new day to the itinerary
+                              setItinerary((prev) => [
+                                ...prev,
+                                { day: prev.length + 1, places: [] },
+                              ]);
+                            }}
+                          >
+                            <Ionicons
+                              name="add"
+                              size={22}
+                              color="#fff"
+                              style={{ marginRight: 6 }}
+                            />
+                            <Text style={styles.addDayText}>Add Day</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              styles.addDayButton,
+                              { backgroundColor: "#ff4757", marginTop: 12 },
+                            ]}
+                            onPress={() => {
+                              // Remove the last day from the itinerary
+                              setItinerary((prev) =>
+                                prev.length > 0 ? prev.slice(0, -1) : prev
+                              );
+                            }}
+                            disabled={itinerary.length === 0}
+                          >
+                            <Ionicons
+                              name="remove"
+                              size={22}
+                              color="#fff"
+                              style={{ marginRight: 6 }}
+                            />
+                            <Text style={styles.addDayText}>Remove Day</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      {loading && (
+                        <Text style={{ textAlign: "center", marginTop: 20 }}>
+                          Loading...
+                        </Text>
+                      )}
+                    </>
+                  ),
+                }
+          }
+        />
+      </View>
+    </>
   );
 }
 
@@ -549,16 +907,21 @@ const styles = StyleSheet.create({
   placeCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff", // set card background to white
+    backgroundColor: "#fff",
     marginBottom: 12,
     borderRadius: 22,
     paddingVertical: 14,
     paddingHorizontal: 15,
     shadowColor: "#000",
-    shadowOpacity: 0.18, // increase shadow opacity
+    shadowOpacity: 0.18,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 }, // increase shadow offset
-    elevation: 6, // increase elevation for Android
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  placeCardSelected: {
+    borderColor: Colors.accent,
+    borderWidth: 2,
+    backgroundColor: "#e6f7fa",
   },
   placeName: {
     fontWeight: "bold",
@@ -621,7 +984,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "column",
-    width: 44, // smaller button
+    width: 40, // smaller button
     height: 44,
     borderRadius: 22,
     backgroundColor: "#ff4757",
@@ -636,5 +999,25 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     marginRight: 12,
+  },
+  editListBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginLeft: 12,
+    elevation: 2,
+  },
+  editListBtnText: {
+    color: Colors.lightText,
+    fontWeight: "bold",
+    fontSize: 16,
+    letterSpacing: 0.2,
+    shadowColor: Colors.accent,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
 });

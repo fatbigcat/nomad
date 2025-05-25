@@ -24,6 +24,7 @@ interface Props {
   onBack: () => void;
   renderItem: (item: GoogleMapsPlace) => React.ReactNode;
   ListFooterComponent?: React.ReactNode;
+  rightAction?: React.ReactNode; // <-- new prop
 }
 
 export default function LocationPickerScreen({
@@ -35,6 +36,7 @@ export default function LocationPickerScreen({
   onBack,
   renderItem,
   ListFooterComponent,
+  rightAction,
 }: Readonly<Props>) {
   return (
     <View style={styles.container}>
@@ -44,6 +46,10 @@ export default function LocationPickerScreen({
           <Ionicons name="chevron-back" size={28} color={Colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Location</Text>
+        {/* Render rightAction if provided */}
+        {rightAction ? (
+          <View style={{ marginLeft: 8 }}>{rightAction}</View>
+        ) : null}
       </View>
       {/* Start point selector */}
       <View style={styles.startPointRow}>

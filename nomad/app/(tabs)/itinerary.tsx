@@ -27,10 +27,16 @@ export default function ItineraryScreen() {
   >([]);
   const [importing, setImporting] = useState(false);
   const [bottomSheetError, setBottomSheetError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const modalizeRef = useRef<any>(null);
 
+  const fetchItineraries = async () => {
+    const data = await getAllItineraries();
+    setItineraries(data);
+  };
+
   React.useEffect(() => {
-    getAllItineraries().then((data) => setItineraries(data));
+    fetchItineraries();
   }, []);
 
   const openSheet = () => modalizeRef.current?.open();
@@ -57,7 +63,7 @@ export default function ItineraryScreen() {
       return;
     }
     setBottomSheetError("");
-    // Create a new itinerary with 0 locations and empty days
+    // Create a new itinerary with 0 locations and empty days, and reference to Google Maps list
     const newItinerary = {
       city: name,
       days,
@@ -66,6 +72,7 @@ export default function ItineraryScreen() {
         day: i + 1,
         places: [],
       })),
+      googleMapsList: list, // Reference to connected Google Maps list
     };
     await addItinerary(newItinerary);
     getAllItineraries().then((data) => setItineraries(data));
@@ -82,7 +89,7 @@ export default function ItineraryScreen() {
   // Swipe-to-delete for itineraries
   const handleDeleteItinerary = async (id: string) => {
     await deleteItinerary(id);
-    getAllItineraries().then((data) => setItineraries(data));
+    fetchItineraries();
   };
 
   const renderRightActions = (
@@ -167,6 +174,12 @@ export default function ItineraryScreen() {
     </View>
   );
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchItineraries();
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -228,6 +241,8 @@ export default function ItineraryScreen() {
         )}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={{ paddingBottom: 64 }}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
       />
 
       {/* Floating Add Button */}
