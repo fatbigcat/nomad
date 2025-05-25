@@ -14,39 +14,49 @@ import { getAllGoogleMapsLists } from "../app/data/googleMapsDb";
 
 type AddItineraryBottomSheetProps = {
   onAdd: (name: string, days: number, list: string) => void;
+  error?: string;
+  clearError?: () => void;
 };
 
 const AddItineraryBottomSheet = forwardRef<
   Modalize,
   AddItineraryBottomSheetProps
->(({ onAdd }, ref) => {
+>(({ onAdd, error, clearError }, ref) => {
   const [availableLists, setAvailableLists] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [days, setDays] = useState("");
   const [list, setList] = useState("");
-  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
-  React.useEffect(() => {
+  const refreshLists = () => {
     getAllGoogleMapsLists().then((lists) => {
       setAvailableLists(lists.map((l: any) => l.listName));
     });
+  };
+
+  React.useEffect(() => {
+    refreshLists();
   }, []);
 
   const handleAdd = () => {
     if (!name.trim()) {
-      setError("Please enter a name.");
+      if (clearError) clearError();
+      setLocalError("Please enter a name.");
       return;
     }
     if (!list.trim()) {
-      setError("Please choose a list.");
+      if (clearError) clearError();
+      setLocalError("Please choose a list.");
       return;
     }
     if (!days.trim() || isNaN(Number(days)) || Number(days) < 1) {
-      setError("Please enter a valid number of days.");
+      if (clearError) clearError();
+      setLocalError("Please enter a valid number of days.");
       return;
     }
-    setError("");
+    if (clearError) clearError();
+    setLocalError("");
     onAdd(name.trim(), Number(days), list.trim());
     setName("");
     setDays("");
@@ -56,6 +66,7 @@ const AddItineraryBottomSheet = forwardRef<
   return (
     <Modalize
       ref={ref}
+      onOpen={refreshLists} // <-- Refresh lists every time the sheet opens
       adjustToContentHeight
       handleStyle={{ backgroundColor: "#CCC" }}
       modalStyle={{
@@ -146,7 +157,9 @@ const AddItineraryBottomSheet = forwardRef<
           onChangeText={setDays}
           maxLength={2}
         />
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ?? localError ? (
+          <Text style={styles.errorText}>{error ?? localError}</Text>
+        ) : null}
 
         <TouchableOpacity
           style={[

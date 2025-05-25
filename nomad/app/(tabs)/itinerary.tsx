@@ -1,17 +1,21 @@
 import React, { useRef, useState } from "react";
-import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
+import { View, Text, FlatList, StyleSheet, Pressable, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/Colors";
-import { getAllItineraries, addItinerary } from "../data/itineraryDb";
+import { getAllItineraries, addItinerary, deleteItinerary } from "../data/itineraryDb";
+import { importDemoGoogleMapsLists } from "../data/importGoogleMapsLists";
 import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
+import { Swipeable } from "react-native-gesture-handler";
 
 export default function ItineraryScreen() {
   const router = useRouter();
   const [itineraries, setItineraries] = useState<
     (Itinerary & { id: string })[]
   >([]);
+  const [importing, setImporting] = useState(false);
+  const [bottomSheetError, setBottomSheetError] = useState("");
   const modalizeRef = useRef<any>(null);
 
   React.useEffect(() => {
@@ -31,15 +35,70 @@ export default function ItineraryScreen() {
     days: number,
     list: string
   ) => {
+    // Check for duplicate itinerary name
+    const allItineraries = await getAllItineraries();
+    if (
+      allItineraries.some(
+        (it) => it.city.toLowerCase() === name.trim().toLowerCase()
+      )
+    ) {
+      setBottomSheetError("An itinerary with this name already exists.");
+      return;
+    }
+    setBottomSheetError("");
+    // Create a new itinerary with 0 locations and empty days
     const newItinerary = {
       city: name,
       days,
-      locations: Math.floor(Math.random() * 25) + 3, // Or get actual value
-      details: [], // You may want to fetch or pass details from the list
+      locations: 0, // Start with 0 locations
+      details: Array.from({ length: days }, (_, i) => ({
+        day: i + 1,
+        places: [],
+      })),
     };
     await addItinerary(newItinerary);
     getAllItineraries().then((data) => setItineraries(data));
     modalizeRef.current?.close();
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    await importDemoGoogleMapsLists();
+    setImporting(false);
+    // Optionally refresh itineraries or Google Maps lists here
+  };
+
+  // Swipe-to-delete for itineraries
+  const handleDeleteItinerary = async (id: string) => {
+    await deleteItinerary(id);
+    getAllItineraries().then((data) => setItineraries(data));
+  };
+
+  const renderRightActions = (
+    id: string,
+    progress: Animated.AnimatedInterpolation<number>
+  ) => {
+    const trans = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [192, 0],
+    });
+    const scale = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    });
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", backgroundColor: "#ff4757", marginBottom: 16, borderRadius: 18, paddingRight: 20 }}>
+        <Animated.View style={{ transform: [{ translateX: trans }, { scale }] }}>
+          <Pressable
+            style={{ alignItems: "center", justifyContent: "center", flexDirection: "column", width: 44, height: 44, borderRadius: 22, backgroundColor: "#ff4757", alignSelf: "center" }}
+            onPress={() => handleDeleteItinerary(id)}
+          >
+            <Ionicons name="trash-outline" size={24} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600", marginTop: 2, textAlign: "center" }}>Delete</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    );
   };
 
   const renderEmpty = () => (
@@ -47,6 +106,21 @@ export default function ItineraryScreen() {
       <Text style={styles.emptyText}>No itineraries yet</Text>
       <Pressable style={styles.createButton} onPress={openSheet}>
         <Text style={styles.createButtonText}>Create your first itinerary</Text>
+      </Pressable>
+      <Pressable
+        style={[
+          styles.createButton,
+          {
+            marginTop: 16,
+            backgroundColor: importing ? Colors.border : Colors.accent,
+          },
+        ]}
+        onPress={handleImport}
+        disabled={importing}
+      >
+        <Text style={styles.createButtonText}>
+          {importing ? "Importing..." : "Import Demo Google Maps Lists"}
+        </Text>
       </Pressable>
     </View>
   );
@@ -57,45 +131,50 @@ export default function ItineraryScreen() {
         data={itineraries}
         keyExtractor={(item) => item.city}
         renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [
-              styles.card,
-              { transform: [{ scale: pressed ? 0.97 : 1 }] },
-            ]}
-            // Only open details when pressing the card, not the share icon
-            onPress={() => handleItineraryPress(item)}
+          <Swipeable
+            renderRightActions={(progress) => renderRightActions(item.id, progress)}
+            rightThreshold={40}
+            overshootRight={false}
           >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                { transform: [{ scale: pressed ? 0.97 : 1 }] },
+              ]}
+              onPress={() => handleItineraryPress(item)}
             >
-              <View>
-                <Text style={styles.city}>{item.city}</Text>
-                <Text style={styles.cardInfo}>{item.days} days</Text>
-                <Text style={styles.cardInfo}>{item.locations} locations</Text>
-              </View>
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (navigator.share) {
-                    navigator.share({
-                      title: `Itinerary for ${item.city}`,
-                      text: `Check out my itinerary for ${item.city}: ${item.days} days, ${item.locations} locations!`,
-                    });
-                  } else {
-                    alert(`Share itinerary for ${item.city}`);
-                  }
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
-                hitSlop={10}
-                style={{ padding: 4 }}
               >
-                <Ionicons name="share-social" size={36} color={Colors.accent} />
-              </Pressable>
-            </View>
-          </Pressable>
+                <View>
+                  <Text style={styles.city}>{item.city}</Text>
+                  <Text style={styles.cardInfo}>{item.days} days</Text>
+                  <Text style={styles.cardInfo}>{item.locations} locations</Text>
+                </View>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    if (navigator.share) {
+                      navigator.share({
+                        title: `Itinerary for ${item.city}`,
+                        text: `Check out my itinerary for ${item.city}: ${item.days} days, ${item.locations} locations!`,
+                      });
+                    } else {
+                      alert(`Share itinerary for ${item.city}`);
+                    }
+                  }}
+                  hitSlop={10}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="share-social" size={36} color={Colors.accent} />
+                </Pressable>
+              </View>
+            </Pressable>
+          </Swipeable>
         )}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={{ paddingBottom: 64 }}
@@ -120,7 +199,12 @@ export default function ItineraryScreen() {
         <Ionicons name="add" size={44} color={Colors.card} />
       </Pressable>
 
-      <AddItineraryBottomSheet ref={modalizeRef} onAdd={handleAddItinerary} />
+      <AddItineraryBottomSheet
+        ref={modalizeRef}
+        onAdd={handleAddItinerary}
+        error={bottomSheetError}
+        clearError={() => setBottomSheetError("")}
+      />
     </View>
   );
 }

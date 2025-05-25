@@ -13,7 +13,7 @@ import { Modalize } from "react-native-modalize";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/Colors";
-import { getAllItineraries } from "../data/itineraryDb";
+import { getAllItineraries, addItinerary } from "../data/itineraryDb";
 import { useLocalSearchParams } from "expo-router";
 
 const screenHeight = Dimensions.get("window").height;
@@ -83,8 +83,15 @@ export default function ItineraryDetailsScreen() {
       try {
         const all = await getAllItineraries();
         // For now, just use the first itinerary (improve as needed)
-        if (all.length > 0 && all[0].details) {
-          setItinerary(all[0].details);
+        if (all.length > 0 && all[0].days) {
+          // Ensure we have an array for each day, even if no places
+          const numDays = all[0].days;
+          const details = all[0].details || [];
+          const fullItinerary = Array.from({ length: numDays }, (_, i) => {
+            const found = details.find((d: ItineraryDay) => d.day === i + 1);
+            return found || { day: i + 1, places: [] };
+          });
+          setItinerary(fullItinerary);
         }
       } finally {
         setLoading(false);
@@ -93,6 +100,25 @@ export default function ItineraryDetailsScreen() {
     fetchItinerary();
     modalizeRef.current?.open();
   }, []);
+
+  // Add a function to create and store a new itinerary in Firestore
+  async function handleCreateItinerary(cityName: string, days: number) {
+    const newItinerary = {
+      city: cityName,
+      days,
+      locations: 0, // Start with 0 locations
+      details: Array.from({ length: days }, (_, i) => ({
+        day: i + 1,
+        places: [],
+      })),
+    };
+    await addItinerary(newItinerary);
+    // Optionally, fetch and update local state
+    const all = await getAllItineraries();
+    if (all.length > 0 && all[0].details) {
+      setItinerary(all[0].details);
+    }
+  }
 
   const removePlace = (dayIndex: number, placeIndex: number) => {
     setItinerary((prevItinerary) =>
@@ -158,6 +184,16 @@ export default function ItineraryDetailsScreen() {
           <Ionicons name="add" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
+      {/* Always render at least the empty state for each day */}
+      {day.places.length === 0 && (
+        <View
+          style={[styles.placeCard, { opacity: 0.5, justifyContent: "center" }]}
+        >
+          <Text style={{ color: Colors.primary, fontStyle: "italic" }}>
+            No locations yet
+          </Text>
+        </View>
+      )}
       {day.places.map((place: Place, placeIndex: number) => (
         <Swipeable
           key={place.name + placeIndex}
@@ -165,7 +201,7 @@ export default function ItineraryDetailsScreen() {
             progress: Animated.AnimatedInterpolation<number>
           ) => renderRightActions(dayIndex, placeIndex, progress)}
           rightThreshold={40}
-          overshootRight={false} // prevent swipe past the red delete button
+          overshootRight={false}
         >
           <View style={styles.placeCard}>
             {getPlaceIcon(place.type)}
@@ -234,6 +270,14 @@ export default function ItineraryDetailsScreen() {
           ListFooterComponent: (
             <>
               <View style={styles.addDayContainer}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    color: Colors.primary,
+                    marginBottom: 10,
+                  }}
+                ></Text>
                 <TouchableOpacity style={styles.addDayButton}>
                   <Ionicons
                     name="add"
