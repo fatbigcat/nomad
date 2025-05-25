@@ -214,6 +214,20 @@ function HeaderRight({
   return <EditListButton editMode={editMode} onPress={onPress} />;
 }
 
+// Define HeaderLeft for back arrow
+function HeaderLeft() {
+  const navigation = useNavigation();
+  return (
+    <TouchableOpacity
+      onPress={() => navigation.navigate("itinerary" as never)}
+      style={{ marginLeft: 12, padding: 4 }}
+      accessibilityLabel="Go back"
+    >
+      <Ionicons name="arrow-back" size={26} color={Colors.lightText} />
+    </TouchableOpacity>
+  );
+}
+
 export default function ItineraryDetailsScreen() {
   const navigation = useNavigation();
   const modalizeRef = useRef<Modalize>(null);
@@ -455,6 +469,7 @@ export default function ItineraryDetailsScreen() {
   React.useLayoutEffect(() => {
     navigation.setOptions({
       title: cityTitle,
+      headerLeft: () => <HeaderLeft />, // <-- Add back arrow
       headerRight: () => (
         <HeaderRight editMode={editMode} onPress={handleToggleEditMode} />
       ),
@@ -493,22 +508,7 @@ export default function ItineraryDetailsScreen() {
 
   return (
     <>
-      {/* Remove Stack.Screen options prop for headerRight, as it's now set in useLayoutEffect */}
-      <Stack.Screen options={{ title: cityTitle }} />
       <View style={{ flex: 1, position: "relative" }}>
-        {/* SCREEN TITLE AND EDIT BUTTON */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            marginTop: 32,
-            marginBottom: 8,
-          }}
-        >
-          <Text style={styles.headerCity}>{city || "Itinerary"}</Text>
-        </View>
-
         {/* MAP */}
         <MapView
           style={StyleSheet.absoluteFill}
