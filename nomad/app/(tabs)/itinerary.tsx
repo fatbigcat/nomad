@@ -1,9 +1,20 @@
 import React, { useRef, useState } from "react";
-import { View, Text, FlatList, StyleSheet, Pressable, Animated } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Pressable,
+  Animated,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Colors from "@/constants/Colors";
-import { getAllItineraries, addItinerary, deleteItinerary } from "../data/itineraryDb";
+import {
+  getAllItineraries,
+  addItinerary,
+  deleteItinerary,
+} from "../data/itineraryDb";
 import { importDemoGoogleMapsLists } from "../data/importGoogleMapsLists";
 import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
@@ -87,14 +98,45 @@ export default function ItineraryScreen() {
       outputRange: [0, 1],
     });
     return (
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", backgroundColor: "#ff4757", marginBottom: 16, borderRadius: 18, paddingRight: 20 }}>
-        <Animated.View style={{ transform: [{ translateX: trans }, { scale }] }}>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          backgroundColor: "#ff4757",
+          marginBottom: 16,
+          borderRadius: 18,
+          paddingRight: 20,
+        }}
+      >
+        <Animated.View
+          style={{ transform: [{ translateX: trans }, { scale }] }}
+        >
           <Pressable
-            style={{ alignItems: "center", justifyContent: "center", flexDirection: "column", width: 44, height: 44, borderRadius: 22, backgroundColor: "#ff4757", alignSelf: "center" }}
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: "#ff4757",
+              alignSelf: "center",
+            }}
             onPress={() => handleDeleteItinerary(id)}
           >
             <Ionicons name="trash-outline" size={24} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "600", marginTop: 2, textAlign: "center" }}>Delete</Text>
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: "600",
+                marginTop: 2,
+                textAlign: "center",
+              }}
+            >
+              Delete
+            </Text>
           </Pressable>
         </Animated.View>
       </View>
@@ -132,7 +174,9 @@ export default function ItineraryScreen() {
         keyExtractor={(item) => item.city}
         renderItem={({ item }) => (
           <Swipeable
-            renderRightActions={(progress) => renderRightActions(item.id, progress)}
+            renderRightActions={(progress) =>
+              renderRightActions(item.id, progress)
+            }
             rightThreshold={40}
             overshootRight={false}
           >
@@ -153,7 +197,9 @@ export default function ItineraryScreen() {
                 <View>
                   <Text style={styles.city}>{item.city}</Text>
                   <Text style={styles.cardInfo}>{item.days} days</Text>
-                  <Text style={styles.cardInfo}>{item.locations} locations</Text>
+                  <Text style={styles.cardInfo}>
+                    {item.locations} locations
+                  </Text>
                 </View>
                 <Pressable
                   onPress={(e) => {
@@ -170,7 +216,11 @@ export default function ItineraryScreen() {
                   hitSlop={10}
                   style={{ padding: 4 }}
                 >
-                  <Ionicons name="share-social" size={36} color={Colors.accent} />
+                  <Ionicons
+                    name="share-social"
+                    size={36}
+                    color={Colors.accent}
+                  />
                 </Pressable>
               </View>
             </Pressable>

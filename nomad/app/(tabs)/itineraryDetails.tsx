@@ -7,6 +7,9 @@ import {
   FlatList,
   Dimensions,
   Animated,
+  Alert,
+  ActionSheetIOS,
+  Platform,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Modalize } from "react-native-modalize";
@@ -14,7 +17,15 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Swipeable } from "react-native-gesture-handler";
 import Colors from "@/constants/Colors";
 import { getAllItineraries, addItinerary } from "../data/itineraryDb";
+import {
+  getAllGoogleMapsLists,
+  GoogleMapsList,
+  GoogleMapsPlace,
+} from "../data/googleMapsDb";
 import { useLocalSearchParams } from "expo-router";
+import LocationPickerScreen, {
+  LocationSort,
+} from "../../components/LocationPickerScreen";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -75,6 +86,24 @@ export default function ItineraryDetailsScreen() {
   const { city } = useLocalSearchParams();
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locationPicker, setLocationPicker] = useState<{
+    visible: boolean;
+    dayIndex: number | null;
+    places: GoogleMapsPlace[];
+    startPoint?: GoogleMapsPlace;
+  }>({ visible: false, dayIndex: null, places: [] });
+  // Add a state to control the add location mode
+  const [addLocationMode, setAddLocationMode] = useState<{
+    active: boolean;
+    dayIndex: number | null;
+    places: GoogleMapsPlace[];
+    startPoint?: GoogleMapsPlace;
+  }>({ active: false, dayIndex: null, places: [] });
+  // Add location sort state
+  const [locationSort, setLocationSort] = useState<LocationSort>("opening");
+  const [locationStart, setLocationStart] = useState<
+    GoogleMapsPlace | undefined
+  >(undefined);
 
   // Fetch itinerary from Firestore on mount
   useEffect(() => {
@@ -170,6 +199,80 @@ export default function ItineraryDetailsScreen() {
     );
   };
 
+  // Add location to a day in the itinerary
+  const handleAddLocation = async (dayIndex: number) => {
+    const lists = (await getAllGoogleMapsLists()) as (GoogleMapsList & {
+      id: string;
+    })[];
+    const itineraryCity = city?.toString() || "";
+    const cityList = lists.find(
+      (l) => l.city.toLowerCase() === itineraryCity.toLowerCase()
+    );
+    if (!cityList || !cityList.places || cityList.places.length === 0) {
+      Alert.alert(
+        "No locations available",
+        `No Google Maps list found for ${itineraryCity} or the list is empty.`
+      );
+      return;
+    }
+    // Filter out places already in this day
+    const usedNames = new Set(itinerary[dayIndex].places.map((p) => p.name));
+    const availablePlaces = cityList.places.filter(
+      (p: GoogleMapsPlace) => !usedNames.has(p.name)
+    );
+    if (availablePlaces.length === 0) {
+      Alert.alert(
+        "All locations added",
+        "All available locations for this day have already been added."
+      );
+      return;
+    }
+    setAddLocationMode({ active: true, dayIndex, places: availablePlaces });
+    // Pop the bottom sheet to full height
+    modalizeRef.current?.open();
+  };
+
+  const handleLocationSelect = (place: GoogleMapsPlace) => {
+    if (addLocationMode.dayIndex === null) return;
+    setItinerary((prev) =>
+      prev.map((day, idx) =>
+        idx === addLocationMode.dayIndex
+          ? { ...day, places: [...day.places, place] }
+          : day
+      )
+    );
+    setAddLocationMode({ active: false, dayIndex: null, places: [] });
+    // Optionally update Firestore here
+  };
+
+  const handleSetStartPoint = (place: GoogleMapsPlace) => {
+    setAddLocationMode((prev) => ({ ...prev, startPoint: place }));
+  };
+
+  const handleAddLocationBack = () => {
+    setAddLocationMode({ active: false, dayIndex: null, places: [] });
+  };
+
+  const getSortedPlaces = (places: GoogleMapsPlace[]) => {
+    if (locationSort === "opening") {
+      return [...places].sort((a, b) => {
+        const getHour = (h: string) =>
+          parseInt(h.split(":")[0].replace(/\D/g, "")) || 0;
+        return getHour(a.hours) - getHour(b.hours);
+      });
+    } else if (locationSort === "distance" && locationStart) {
+      const getDistance = (a: GoogleMapsPlace, b: GoogleMapsPlace) => {
+        const dx = a.lat - b.lat;
+        const dy = a.lng - b.lng;
+        return Math.sqrt(dx * dx + dy * dy);
+      };
+      return [...places].sort(
+        (a, b) => getDistance(a, locationStart) - getDistance(b, locationStart)
+      );
+    }
+    return places;
+  };
+
   const renderDay = ({
     item: day,
     index: dayIndex,
@@ -180,7 +283,10 @@ export default function ItineraryDetailsScreen() {
     <View style={styles.daySection}>
       <View style={styles.dayHeader}>
         <Text style={styles.dayTitle}>Day {day.day}</Text>
-        <TouchableOpacity style={styles.addActivityBtn}>
+        <TouchableOpacity
+          style={styles.addActivityBtn}
+          onPress={() => handleAddLocation(dayIndex)}
+        >
           <Ionicons name="add" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -257,45 +363,112 @@ export default function ItineraryDetailsScreen() {
         alwaysOpen={screenHeight * 0.23}
         adjustToContentHeight={false}
         modalHeight={screenHeight * 0.93}
-        flatListProps={{
-          data: itinerary,
-          renderItem: renderDay,
-          keyExtractor: (item) => "day" + item.day,
-          contentContainerStyle: {
-            paddingBottom: 85,
-            paddingHorizontal: 14,
-            paddingTop: 14,
-          },
-          showsVerticalScrollIndicator: false,
-          ListFooterComponent: (
-            <>
-              <View style={styles.addDayContainer}>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "bold",
-                    color: Colors.primary,
-                    marginBottom: 10,
-                  }}
-                ></Text>
-                <TouchableOpacity style={styles.addDayButton}>
-                  <Ionicons
-                    name="add"
-                    size={22}
-                    color="#fff"
-                    style={{ marginRight: 6 }}
+        flatListProps={
+          addLocationMode.active
+            ? {
+                data: getSortedPlaces(addLocationMode.places),
+                renderItem: ({ item }) => (
+                  <TouchableOpacity
+                    style={styles.placeCard}
+                    onPress={() => handleLocationSelect(item)}
+                  >
+                    <View style={styles.iconWrap}>
+                      {item.type === "food" && (
+                        <MaterialCommunityIcons
+                          name="silverware-fork-knife"
+                          size={24}
+                          color={Colors.accent}
+                        />
+                      )}
+                      {item.type === "museum" && (
+                        <MaterialCommunityIcons
+                          name="bank"
+                          size={24}
+                          color={Colors.accent}
+                        />
+                      )}
+                      {item.type === "store" && (
+                        <Ionicons name="cart" size={24} color={Colors.accent} />
+                      )}
+                      {item.type === "landmark" && (
+                        <Ionicons
+                          name="location"
+                          size={24}
+                          color={Colors.accent}
+                        />
+                      )}
+                      {item.type === "park" && (
+                        <MaterialCommunityIcons
+                          name="tree"
+                          size={24}
+                          color={Colors.accent}
+                        />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.placeName}>{item.name}</Text>
+                      <Text style={styles.placeHours}>Open {item.hours}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ),
+                keyExtractor: (item) => item.name,
+                contentContainerStyle: {
+                  paddingHorizontal: 18,
+                  paddingTop: 8,
+                  paddingBottom: 24,
+                },
+                ListHeaderComponent: (
+                  <LocationPickerScreen
+                    places={addLocationMode.places}
+                    sort={locationSort}
+                    setSort={setLocationSort}
+                    start={locationStart}
+                    setStart={setLocationStart}
+                    onBack={handleAddLocationBack}
+                    renderItem={() => null}
                   />
-                  <Text style={styles.addDayText}>Add Day</Text>
-                </TouchableOpacity>
-              </View>
-              {loading && (
-                <Text style={{ textAlign: "center", marginTop: 20 }}>
-                  Loading...
-                </Text>
-              )}
-            </>
-          ),
-        }}
+                ),
+              }
+            : {
+                data: itinerary,
+                renderItem: renderDay,
+                keyExtractor: (item) => "day" + item.day,
+                contentContainerStyle: {
+                  paddingBottom: 85,
+                  paddingHorizontal: 14,
+                  paddingTop: 14,
+                },
+                showsVerticalScrollIndicator: false,
+                ListFooterComponent: (
+                  <>
+                    <View style={styles.addDayContainer}>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "bold",
+                          color: Colors.primary,
+                          marginBottom: 10,
+                        }}
+                      ></Text>
+                      <TouchableOpacity style={styles.addDayButton}>
+                        <Ionicons
+                          name="add"
+                          size={22}
+                          color="#fff"
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={styles.addDayText}>Add Day</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {loading && (
+                      <Text style={{ textAlign: "center", marginTop: 20 }}>
+                        Loading...
+                      </Text>
+                    )}
+                  </>
+                ),
+              }
+        }
       />
     </View>
   );
@@ -358,7 +531,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   daySection: {
-    marginBottom: 18,
+    marginVertical: 10,
   },
   dayHeader: {
     flexDirection: "row",
@@ -383,7 +556,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     shadowColor: Colors.accent,
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
@@ -474,5 +647,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 2,
     textAlign: "center",
+  },
+  iconWrap: {
+    marginRight: 12,
   },
 });
