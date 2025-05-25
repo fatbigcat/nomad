@@ -16,6 +16,7 @@ import {
   deleteItinerary,
 } from "../data/itineraryDb";
 import { importDemoGoogleMapsLists } from "../data/importGoogleMapsLists";
+import { getAllGoogleMapsLists, GoogleMapsList } from "../data/googleMapsDb";
 import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 import { Swipeable } from "react-native-gesture-handler";
@@ -40,10 +41,35 @@ export default function ItineraryScreen() {
   }, []);
 
   const openSheet = () => modalizeRef.current?.open();
-  const handleItineraryPress = (itinerary: Itinerary & { id: string }) => {
+  const handleItineraryPress = async (itinerary: Itinerary & { id: string }) => {
+    // Fetch all Google Maps lists
+    const lists = await getAllGoogleMapsLists();
+    // Try to find the list by city name (case-insensitive)
+    const list = lists.find((l: any) =>
+      typeof l.city === "string" &&
+      l.city.toLowerCase() === itinerary.city.toLowerCase() &&
+      Array.isArray(l.places) &&
+      l.places.length > 0
+    ) as GoogleMapsList | undefined;
+    let center = undefined;
+    if (list) {
+      const avg = list.places.reduce(
+        (acc, p) => {
+          return { lat: acc.lat + p.lat, lng: acc.lng + p.lng };
+        },
+        { lat: 0, lng: 0 }
+      );
+      center = {
+        latitude: avg.lat / list.places.length,
+        longitude: avg.lng / list.places.length,
+      };
+    }
     router.push({
       pathname: "/itineraryDetails",
-      params: { city: itinerary.city },
+      params: {
+        city: itinerary.city,
+        center: center ? JSON.stringify(center) : undefined,
+      },
     });
   };
 

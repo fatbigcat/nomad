@@ -22,7 +22,7 @@ import {
 import LocationPickerScreen, {
   LocationSort,
 } from "../../components/LocationPickerScreen";
-import { Stack, useNavigation, useLocalSearchParams } from "expo-router";
+import { Stack, useNavigation, useLocalSearchParams, useFocusEffect } from "expo-router";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -231,7 +231,7 @@ function HeaderLeft() {
 export default function ItineraryDetailsScreen() {
   const navigation = useNavigation();
   const modalizeRef = useRef<Modalize>(null);
-  const { city } = useLocalSearchParams();
+  const { city, center } = useLocalSearchParams();
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [addLocationMode, setAddLocationMode] = useState<{
@@ -447,12 +447,36 @@ export default function ItineraryDetailsScreen() {
     return places;
   };
 
-  const initialRegion = {
+  // Parse center param if present
+  let initialRegion = {
     latitude: 48.864716,
     longitude: 2.349014,
     latitudeDelta: 0.06,
     longitudeDelta: 0.04,
   };
+  if (typeof center === "string") {
+    try {
+      const parsed = JSON.parse(center);
+      if (
+        typeof parsed.latitude === "number" &&
+        typeof parsed.longitude === "number"
+      ) {
+        initialRegion = {
+          latitude: parsed.latitude,
+          longitude: parsed.longitude,
+          latitudeDelta: 0.06,
+          longitudeDelta: 0.04,
+        };
+      }
+    } catch {}
+  }
+  // State to force remount of MapView
+  const [mapKey, setMapKey] = useState(0);
+  useFocusEffect(
+    React.useCallback(() => {
+      setMapKey((k) => k + 1);
+    }, [center, city])
+  );
 
   // Derive allPlaces from itinerary state
   const allPlaces = itinerary.flatMap((day) => day.places);
@@ -511,6 +535,7 @@ export default function ItineraryDetailsScreen() {
       <View style={{ flex: 1, position: "relative" }}>
         {/* MAP */}
         <MapView
+          key={mapKey}
           style={StyleSheet.absoluteFill}
           initialRegion={initialRegion}
           customMapStyle={mapStyle}
