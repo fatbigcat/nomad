@@ -104,6 +104,7 @@ export default function ItineraryDetailsScreen() {
   const [locationStart, setLocationStart] = useState<
     GoogleMapsPlace | undefined
   >(undefined);
+  const [alwaysOpenValue, setAlwaysOpenValue] = useState(screenHeight * 0.23);
 
   // Fetch itinerary from Firestore on mount
   useEffect(() => {
@@ -127,27 +128,8 @@ export default function ItineraryDetailsScreen() {
       }
     }
     fetchItinerary();
-    modalizeRef.current?.open();
+    // Removed modalizeRef.current?.open() from here
   }, []);
-
-  // Add a function to create and store a new itinerary in Firestore
-  async function handleCreateItinerary(cityName: string, days: number) {
-    const newItinerary = {
-      city: cityName,
-      days,
-      locations: 0, // Start with 0 locations
-      details: Array.from({ length: days }, (_, i) => ({
-        day: i + 1,
-        places: [],
-      })),
-    };
-    await addItinerary(newItinerary);
-    // Optionally, fetch and update local state
-    const all = await getAllItineraries();
-    if (all.length > 0 && all[0].details) {
-      setItinerary(all[0].details);
-    }
-  }
 
   const removePlace = (dayIndex: number, placeIndex: number) => {
     setItinerary((prevItinerary) =>
@@ -228,8 +210,10 @@ export default function ItineraryDetailsScreen() {
       return;
     }
     setAddLocationMode({ active: true, dayIndex, places: availablePlaces });
-    // Pop the bottom sheet to full height
-    modalizeRef.current?.open();
+    setAlwaysOpenValue(0);
+    setTimeout(() => {
+      modalizeRef.current?.open();
+    }, 10);
   };
 
   const handleLocationSelect = (place: GoogleMapsPlace) => {
@@ -242,6 +226,7 @@ export default function ItineraryDetailsScreen() {
       )
     );
     setAddLocationMode({ active: false, dayIndex: null, places: [] });
+    setAlwaysOpenValue(screenHeight * 0.23);
     // Optionally update Firestore here
   };
 
@@ -251,6 +236,7 @@ export default function ItineraryDetailsScreen() {
 
   const handleAddLocationBack = () => {
     setAddLocationMode({ active: false, dayIndex: null, places: [] });
+    setAlwaysOpenValue(screenHeight * 0.23);
   };
 
   const getSortedPlaces = (places: GoogleMapsPlace[]) => {
@@ -360,7 +346,7 @@ export default function ItineraryDetailsScreen() {
         ref={modalizeRef}
         modalStyle={styles.modal}
         handleStyle={styles.handle}
-        alwaysOpen={screenHeight * 0.23}
+        alwaysOpen={alwaysOpenValue}
         adjustToContentHeight={false}
         modalHeight={screenHeight * 0.93}
         flatListProps={
