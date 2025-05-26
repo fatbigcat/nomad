@@ -155,24 +155,34 @@ export default function ItineraryScreen() {
               flexDirection: "column",
               width: 44,
               height: 44,
-              borderRadius: 22,
+              borderRadius: 18,
               backgroundColor: "#ff4757",
               alignSelf: "center",
+              // Center content
+              display: "flex",
             }}
             onPress={() => handleDeleteItinerary(id)}
           >
-            <Ionicons name="trash-outline" size={24} color="#fff" />
-            <Text
+            <View
               style={{
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: "600",
-                marginTop: 2,
-                textAlign: "center",
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
               }}
             >
-              Delete
-            </Text>
+              <Ionicons name="trash-outline" size={24} color="#fff" />
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: "600",
+                  marginTop: 2,
+                  textAlign: "center",
+                }}
+              >
+                Delete
+              </Text>
+            </View>
           </Pressable>
         </Animated.View>
       </View>

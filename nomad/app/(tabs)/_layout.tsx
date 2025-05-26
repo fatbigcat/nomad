@@ -13,6 +13,7 @@ export default function Layout() {
             fontWeight: "bold",
             fontSize: 26,
           },
+          headerLeft: () => null, // Remove hamburger icon from all screens by default
         }}
       >
         <Drawer.Screen
@@ -26,7 +27,11 @@ export default function Layout() {
 
         <Drawer.Screen
           name="itinerary"
-          options={{ drawerLabel: "Itinerary", title: "Itinerary" }}
+          options={{
+            drawerLabel: "Itinerary",
+            title: "Itinerary",
+            headerLeft: () => null, // Remove hamburger icon specifically for itinerary
+          }}
         />
       </Drawer>
     </PaperProvider>

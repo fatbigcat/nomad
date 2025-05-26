@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+} from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -93,6 +99,11 @@ export default function LocationDetailsScreen() {
     });
   }, [navigation, name]);
 
+  function openInGoogleMaps(lat: number, lng: number) {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    Linking.openURL(url);
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -105,6 +116,23 @@ export default function LocationDetailsScreen() {
       <Text style={styles.info}>Longitude: {lng}</Text>
       {city && <Text style={styles.info}>City: {city}</Text>}
       {day && <Text style={styles.info}>Day: {day}</Text>}
+      {/* Google Maps Navigation Button */}
+      {lat && lng && (
+        <TouchableOpacity
+          style={{
+            marginTop: 20,
+            backgroundColor: Colors.accent,
+            padding: 14,
+            borderRadius: 10,
+            alignItems: "center",
+          }}
+          onPress={() => openInGoogleMaps(Number(lat), Number(lng))}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 18 }}>
+            Navigate to location
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
