@@ -658,7 +658,7 @@ export default function ItineraryDetailsScreen() {
                               opacity: selectedLocations.length === 0 ? 0.4 : 1,
                             },
                           ]}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                         >
                           <Ionicons name="checkmark" size={20} color="#fff" />
                         </TouchableOpacity>
@@ -689,7 +689,8 @@ export default function ItineraryDetailsScreen() {
                                   {
                                     text: "Delete",
                                     style: "destructive",
-                                    onPress: () => removeSelectedPlacesForDay(dayIndex),
+                                    onPress: () =>
+                                      removeSelectedPlacesForDay(dayIndex),
                                   },
                                 ]
                               );
@@ -889,7 +890,7 @@ const styles = StyleSheet.create({
   },
   handle: {
     backgroundColor: Colors.primary,
-    width: 48,
+    width: 60,
     height: 6,
     borderRadius: 3,
     alignSelf: "center",
