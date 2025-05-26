@@ -679,7 +679,21 @@ export default function ItineraryDetailsScreen() {
                               styles.addActivityBtn,
                               { backgroundColor: "#ff4757" },
                             ]}
-                            onPress={() => removeSelectedPlacesForDay(dayIndex)}
+                            onPress={() => {
+                              // Ask for confirmation before deleting
+                              Alert.alert(
+                                "Delete selected locations?",
+                                "Are you sure you want to delete the selected locations from this day? This action cannot be undone.",
+                                [
+                                  { text: "Cancel", style: "cancel" },
+                                  {
+                                    text: "Delete",
+                                    style: "destructive",
+                                    onPress: () => removeSelectedPlacesForDay(dayIndex),
+                                  },
+                                ]
+                              );
+                            }}
                             disabled={
                               !day.places.some(
                                 (_: Place, placeIdx: number) =>
