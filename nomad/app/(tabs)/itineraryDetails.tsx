@@ -8,9 +8,6 @@ import {
   Animated,
   Alert,
 } from "react-native";
-import DraggableFlatList, {
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
 import MapView, { Marker } from "react-native-maps";
 import { Modalize } from "react-native-modalize";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -84,30 +81,6 @@ function getPlaceIcon(type: Place["type"]) {
       style={{ marginRight: 12 }}
     />
   );
-}
-const [flatPlaces, setFlatPlaces] = useState<FlattenedPlace[]>([]);
-
-interface FlattenedPlace extends Place {
-  key: string;
-  dayIndex: number;
-  placeIndex: number;
-  dayNumber: number;
-}
-
-function flattenItinerary(itinerary: ItineraryDay[]): FlattenedPlace[] {
-  let items: FlattenedPlace[] = [];
-  itinerary.forEach((day: ItineraryDay, dayIndex: number) => {
-    day.places.forEach((place: Place, placeIndex: number) => {
-      items.push({
-        ...place,
-        key: `${dayIndex}-${placeIndex}-${place.name}`,
-        dayIndex,
-        placeIndex,
-        dayNumber: day.day,
-      });
-    });
-  });
-  return items;
 }
 
 // Utility: convert any Place to a Firestore-compatible Place (only supported types)
@@ -663,7 +636,7 @@ export default function ItineraryDetailsScreen() {
                   contentContainerStyle: {
                     paddingHorizontal: 18,
                     paddingTop: 8,
-                    paddingBottom: 100, // extra space for sticky button
+                    paddingBottom: 20,
                   },
                   ListHeaderComponent: (
                     <LocationPickerScreen
@@ -692,6 +665,7 @@ export default function ItineraryDetailsScreen() {
                       }
                     />
                   ),
+                  ListFooterComponent: <View style={{ height: 60 }} />, // Add extra space at the bottom
                 }
               : {
                   data: itinerary,
@@ -773,10 +747,20 @@ export default function ItineraryDetailsScreen() {
                                         dayIndex,
                                         placeIndex
                                       )
-                                  : undefined
+                                  : () => {
+                                      navigation.navigate("locationDetails", {
+                                        name: place.name,
+                                        type: place.type,
+                                        hours: place.hours,
+                                        lat: place.lat,
+                                        lng: place.lng,
+                                        city: cityTitle,
+                                        day: day.day,
+                                      });
+                                    }
                               }
                               showCheckmark={editMode}
-                              disabled={!editMode}
+                              disabled={false}
                               icon={getPlaceIcon(place.type)}
                               style={
                                 editMode && isSelected
@@ -821,7 +805,10 @@ export default function ItineraryDetailsScreen() {
                           <TouchableOpacity
                             style={[
                               styles.addDayButton,
-                              { backgroundColor: "#ff4757", marginTop: 12 },
+                              {
+                                backgroundColor: "#ff4757",
+                                marginTop: 12,
+                              },
                             ]}
                             onPress={() => {
                               // Remove the last day from the itinerary
@@ -873,24 +860,6 @@ const styles = StyleSheet.create({
     justifyContent: "center", // center the text
     paddingHorizontal: 24,
     zIndex: 2,
-  },
-  headerCity: {
-    fontSize: 26, // match layout title size
-    fontWeight: "bold",
-    color: Colors.card, // match layout color
-    letterSpacing: 1.2,
-    backgroundColor: Colors.primary, // match layout background
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 22,
-    overflow: "hidden",
-    marginRight: 0, // remove extra margin
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.17,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
-    textAlign: "center", // ensure text is centered
   },
   modal: {
     backgroundColor: Colors.card,
@@ -983,6 +952,7 @@ const styles = StyleSheet.create({
   },
   addDayButton: {
     flexDirection: "row",
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.accent,

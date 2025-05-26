@@ -12,6 +12,9 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/components/useColorScheme";
 import { PaperProvider } from "react-native-paper";
+import { View, Text } from "react-native";
+import Colors from "@/constants/Colors";
+import { HeaderBackButton } from "./locationDetails";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -50,15 +53,71 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
+// Custom header for Location Details (moved out of RootLayoutNav)
+function LocationDetailsHeader({
+  options,
+  route,
+}: Readonly<{ options: any; route: any }>) {
+  const title = options?.title ?? "Location Details";
+  // Only show back button if not the root
+  const showBack = options?.headerBackVisible !== false;
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: Colors.primary,
+        paddingTop: 60,
+        paddingBottom: 5,
+        paddingHorizontal: 0,
+      }}
+    >
+      {showBack && (
+        <View
+          style={{
+            width: 44,
+            alignItems: "flex-start",
+            justifyContent: "center",
+          }}
+        >
+          <HeaderBackButton color={Colors.card} />
+        </View>
+      )}
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <Text
+          style={{
+            color: Colors.card,
+            fontSize: 26,
+            fontWeight: "bold",
+            textAlign: "center",
+          }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {title}
+        </Text>
+      </View>
+      {/* Spacer to balance the row if needed */}
+      {showBack && <View style={{ width: 44 }} />}
+    </View>
+  );
+}
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-
   return (
     <PaperProvider>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: "modal" }} />
+          <Stack.Screen
+            name="locationDetails"
+            options={{
+              headerShown: true,
+              header: LocationDetailsHeader,
+            }}
+          />
         </Stack>
       </ThemeProvider>
     </PaperProvider>
