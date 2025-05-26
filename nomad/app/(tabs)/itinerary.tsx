@@ -8,7 +8,7 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import Colors from "@/constants/Colors";
 import {
   getAllItineraries,
@@ -20,9 +20,27 @@ import { getAllGoogleMapsLists, GoogleMapsList } from "../data/googleMapsDb";
 import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 import { Swipeable } from "react-native-gesture-handler";
+import ShareItinerary from "../../components/ShareItinerary";
+
+function logoutFromGoogle() {
+  // TODO: Integrate Google logout logic here (e.g., GoogleSignIn.signOutAsync())
+}
+
+function HeaderLogoutButton({ onLogout }: { onLogout: () => void }) {
+  return (
+    <Pressable
+      onPress={onLogout}
+      style={{ marginRight: 16, padding: 4 }}
+      accessibilityLabel="Log out"
+    >
+      <Ionicons name="log-out-outline" size={26} color={Colors.lightText} />
+    </Pressable>
+  );
+}
 
 export default function ItineraryScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [itineraries, setItineraries] = useState<
     (Itinerary & { id: string })[]
   >([]);
@@ -39,6 +57,17 @@ export default function ItineraryScreen() {
   React.useEffect(() => {
     fetchItineraries();
   }, []);
+
+  const handleLogout = React.useCallback(() => {
+    logoutFromGoogle();
+    router.replace("/");
+  }, [router]);
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <HeaderLogoutButton onLogout={handleLogout} />, // Use modular header right
+    });
+  }, [navigation, handleLogout]);
 
   const openSheet = () => modalizeRef.current?.open();
   const handleItineraryPress = async (
@@ -253,27 +282,14 @@ export default function ItineraryScreen() {
                     {item.locations} locations
                   </Text>
                 </View>
-                <Pressable
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    if (navigator.share) {
-                      navigator.share({
-                        title: `Itinerary for ${item.city}`,
-                        text: `Check out my itinerary for ${item.city}: ${item.days} days, ${item.locations} locations!`,
-                      });
-                    } else {
-                      alert(`Share itinerary for ${item.city}`);
-                    }
-                  }}
-                  hitSlop={10}
-                  style={{ padding: 4 }}
-                >
-                  <Ionicons
-                    name="share-social"
-                    size={36}
-                    color={Colors.accent}
-                  />
-                </Pressable>
+                <ShareItinerary
+                  city={item.city}
+                  days={item.days}
+                  locations={item.locations}
+                  details={item.details}
+                  buttonStyle={{ padding: 4 }}
+                  iconColor={Colors.accent}
+                />
               </View>
             </Pressable>
           </Swipeable>
