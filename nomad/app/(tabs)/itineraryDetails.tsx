@@ -564,9 +564,11 @@ export default function ItineraryDetailsScreen() {
           ref={modalizeRef}
           modalStyle={styles.modal}
           handleStyle={styles.handle}
-          alwaysOpen={alwaysOpenValue}
+          alwaysOpen={screenHeight * 0.28} // slightly more open for easier grab
           adjustToContentHeight={false}
           modalHeight={screenHeight * 0.93}
+          handlePosition="inside"
+          withHandle={true}
           flatListProps={
             addLocationMode.active
               ? {
@@ -889,11 +891,11 @@ const styles = StyleSheet.create({
   },
   handle: {
     backgroundColor: Colors.primary,
-    width: 48,
-    height: 6,
-    borderRadius: 3,
+    width: 60, // wider
+    height: 12, // taller for easier grab
+    borderRadius: 6,
     alignSelf: "center",
-    marginVertical: 10,
+    marginVertical: 16, // more space
   },
   daySection: {
     marginVertical: 10,
