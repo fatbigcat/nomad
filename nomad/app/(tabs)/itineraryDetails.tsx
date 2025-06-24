@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  Alert,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Modalize } from "react-native-modalize";
@@ -28,6 +27,7 @@ import {
   useLocalSearchParams,
   useFocusEffect,
 } from "expo-router";
+import { confirmDelete } from "../../components/common/confirmDelete";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -234,7 +234,8 @@ function HeaderLeft() {
 export default function ItineraryDetailsScreen() {
   const navigation = useNavigation();
   const modalizeRef = useRef<Modalize>(null);
-  const { city, center } = useLocalSearchParams();
+  const mapRef = useRef<MapView>(null);
+  const { city } = useLocalSearchParams();
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [addLocationMode, setAddLocationMode] = useState<{
@@ -330,6 +331,16 @@ export default function ItineraryDetailsScreen() {
     updateItineraryInFirestore(city, updated);
   };
 
+  const confirmAndRemovePlace = (dayIndex: number, placeIndex: number) => {
+    confirmDelete(() => removePlace(dayIndex, placeIndex), {
+      title: "Delete location?",
+      message:
+        "Are you sure you want to delete this location from the itinerary? This action cannot be undone.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+    });
+  };
+
   const getFirestoreDetailsAndCount = (days: ItineraryDay[]) => {
     const details = days.map((day) => ({
       ...day,
@@ -383,7 +394,15 @@ export default function ItineraryDetailsScreen() {
         >
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={() => removePlace(dayIndex, placeIndex)}
+            onPress={() =>
+              confirmDelete(() => removePlace(dayIndex, placeIndex), {
+                title: "Delete location?",
+                message:
+                  "Are you sure you want to delete this location from the itinerary? This action cannot be undone.",
+                confirmText: "Delete",
+                cancelText: "Cancel",
+              })
+            }
           >
             <Ionicons name="trash-outline" size={24} color="#fff" />
             <Text style={styles.deleteText}>Delete</Text>
@@ -405,19 +424,23 @@ export default function ItineraryDetailsScreen() {
       (it) => it.city.toLowerCase() === itineraryCity.toLowerCase()
     );
     if (!match || !match.googleMapsList) {
-      Alert.alert(
-        "No Google Maps list linked",
-        `This itinerary does not have a linked Google Maps list. Please edit the itinerary to add one.`
-      );
+      confirmDelete(() => {}, {
+        title: "No Google Maps list linked",
+        message: `This itinerary does not have a linked Google Maps list. Please edit the itinerary to add one.`,
+        confirmText: "OK",
+        cancelText: undefined,
+      });
       return;
     }
     // Find the Google Maps list by the googleMapsList property (listName)
     const cityList = lists.find((l) => l.listName === match.googleMapsList);
     if (!cityList || !cityList.places || cityList.places.length === 0) {
-      Alert.alert(
-        "No locations available",
-        `No Google Maps list found for this itinerary or the list is empty.`
-      );
+      confirmDelete(() => {}, {
+        title: "No locations available",
+        message: `No Google Maps list found for this itinerary or the list is empty.`,
+        confirmText: "OK",
+        cancelText: undefined,
+      });
       return;
     }
     //filter out places already in this day
@@ -426,10 +449,12 @@ export default function ItineraryDetailsScreen() {
       (p: GoogleMapsPlace) => !usedNames.has(p.name)
     );
     if (availablePlaces.length === 0) {
-      Alert.alert(
-        "All locations added",
-        "All available locations for this day have already been added."
-      );
+      confirmDelete(() => {}, {
+        title: "All locations added",
+        message: "All available locations for this day have already been added.",
+        confirmText: "OK",
+        cancelText: undefined,
+      });
       return;
     }
     setAddLocationMode({ active: true, dayIndex, places: availablePlaces });
@@ -460,34 +485,18 @@ export default function ItineraryDetailsScreen() {
     return places;
   };
 
-  //parse center param if present
-  let initialRegion = {
-    latitude: 48.864716,
-    longitude: 2.349014,
-    latitudeDelta: 0.06,
-    longitudeDelta: 0.04,
-  };
-  const [mapKey, setMapKey] = useState(0);
-  if (typeof center === "string") {
-    try {
-      const parsed = JSON.parse(center);
-      if (
-        typeof parsed.latitude === "number" &&
-        typeof parsed.longitude === "number"
-      ) {
-        initialRegion = {
-          latitude: parsed.latitude,
-          longitude: parsed.longitude,
-          latitudeDelta: 0.06,
-          longitudeDelta: 0.04,
-        };
-      }
-    } catch {}
-  } else {
+  // region state for controlled MapView, initially null
+  const [region, setRegion] = useState<null | {
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  }>(null);
+
+  // Only fetch region when city changes, and only if there are places
+  useEffect(() => {
     (async () => {
-      const lists = (await getAllGoogleMapsLists()) as (GoogleMapsList & {
-        id: string;
-      })[];
+      const lists = (await getAllGoogleMapsLists()) as (GoogleMapsList & { id: string })[];
       const allItineraries = await getAllItineraries();
       const itineraryCity = city?.toString() || "";
       const match = allItineraries.find(
@@ -496,25 +505,28 @@ export default function ItineraryDetailsScreen() {
       if (match && match.googleMapsList) {
         const cityList = lists.find((l) => l.listName === match.googleMapsList);
         if (cityList && cityList.places && cityList.places.length > 0) {
-          initialRegion = {
-            latitude: cityList.places[0].lat,
-            longitude: cityList.places[0].lng,
+          const avg = cityList.places.reduce(
+            (acc, p) => {
+              acc.lat += p.lat;
+              acc.lng += p.lng;
+              return acc;
+            },
+            { lat: 0, lng: 0 }
+          );
+          const count = cityList.places.length;
+          setRegion({
+            latitude: avg.lat / count,
+            longitude: avg.lng / count,
             latitudeDelta: 0.06,
             longitudeDelta: 0.04,
-          };
-          if (typeof setMapKey === "function") setMapKey((k: number) => k + 1);
+          });
+          return;
         }
       }
+      setRegion(null);
     })();
-  }
-  //state to force remount of MapView
-  useFocusEffect(
-    React.useCallback(() => {
-      setMapKey((k) => k + 1);
-    }, [center, city])
-  );
+  }, [city]);
 
-  //get allPlaces from itinerary state
   const allPlaces = itinerary.flatMap((day) => day.places);
 
   //edit mode handlers
@@ -566,23 +578,33 @@ export default function ItineraryDetailsScreen() {
   return (
     <>
       <View style={{ flex: 1, position: "relative" }}>
-        {/* MAP */}
-        <MapView
-          key={mapKey}
-          style={StyleSheet.absoluteFill}
-          initialRegion={initialRegion}
-          customMapStyle={mapStyle}
-        >
-          {allPlaces.map((place, idx) => (
-            <Marker
-              key={place.name + idx}
-              coordinate={{ latitude: place.lat, longitude: place.lng }}
-              title={place.name}
-              description={place.hours}
-              pinColor="#1499b2"
-            />
-          ))}
-        </MapView>
+        {/* MAP or dark placeholder */}
+        {region ? (
+          <MapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFill}
+            region={region}
+            customMapStyle={mapStyle}
+          >
+            {allPlaces.map((place, idx) => (
+              <Marker
+                key={place.name + idx}
+                coordinate={{ latitude: place.lat, longitude: place.lng }}
+                title={place.name}
+                description={place.hours}
+                pinColor="#1499b2"
+              />
+            ))}
+          </MapView>
+        ) : (
+          <View
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              backgroundColor: '#181a20', // dark placeholder
+              zIndex: 1,
+            }}
+          />
+        )}
 
         {/* MODALIZE SHEET */}
         <Modalize
@@ -706,19 +728,13 @@ export default function ItineraryDetailsScreen() {
                             ]}
                             onPress={() => {
                               // Ask for confirmation before deleting
-                              Alert.alert(
-                                "Delete selected locations?",
-                                "Are you sure you want to delete the selected locations from this day? This action cannot be undone.",
-                                [
-                                  { text: "Cancel", style: "cancel" },
-                                  {
-                                    text: "Delete",
-                                    style: "destructive",
-                                    onPress: () =>
-                                      removeSelectedPlacesForDay(dayIndex),
-                                  },
-                                ]
-                              );
+                              confirmDelete(() => removeSelectedPlacesForDay(dayIndex), {
+                                title: "Delete selected locations?",
+                                message:
+                                  "Are you sure you want to delete the selected locations from this day? This action cannot be undone.",
+                                confirmText: "Delete",
+                                cancelText: "Cancel",
+                              });
                             }}
                             disabled={
                               !day.places.some(
@@ -1057,15 +1073,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginLeft: 12,
     elevation: 2,
-  },
-  editListBtnText: {
-    color: Colors.lightText,
-    fontWeight: "bold",
-    fontSize: 16,
-    letterSpacing: 0.2,
-    shadowColor: Colors.accent,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
   },
 });
