@@ -6,24 +6,21 @@ import { useRouter } from "expo-router";
 export default function IndexScreen() {
   const router = useRouter();
 
-  // Handle Google login (placeholder: navigates to Home)
+  //placeholder: navigates to home
   const handleGoogleLogin = () => {
-    // Here you’d trigger Google authentication
-    router.replace("/itinerary"); // On success, go to home screen
+    //trigger Google authentication
+    router.replace("/itinerary"); //go to home on success
   };
 
   return (
     <View style={styles.root}>
       {/* Top footprints and logo section */}
       <View style={styles.headerBg}>
-        {/* If you have SVG/PNG for footprints, add them here */}
         <View style={styles.logoBox}>
-          {/* Replace with your logo image or SVG */}
           <Text style={styles.logo}>🌞</Text>
         </View>
       </View>
 
-      {/* Main Card */}
       <View style={styles.card}>
         <Text style={styles.title}>Nomad</Text>
         <Text style={styles.subtitle}>Sync with your Google Maps.</Text>
@@ -58,21 +55,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
   },
   headerBg: {
-    minHeight: 300, // Increased height for the upper part
+    minHeight: 300,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.card,
   },
   logoBox: {
     backgroundColor: Colors.primary,
-    width: 80, // Reduced size for the logo box
-    height: 80, // Reduced size for the logo box
-    borderRadius: 16, // Adjusted for smaller square
+    width: 80,
+    height: 80,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 56,
     marginBottom: 16,
-    // Shadow for logo (optional)
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -88,7 +84,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 80,
     paddingTop: 56,
     alignItems: "center",
-    justifyContent: "center", // Center content in the teal part
+    justifyContent: "center",
     paddingHorizontal: 16,
   },
   title: {
@@ -96,7 +92,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: Colors.card,
     marginBottom: 24,
-    fontFamily: "System", // swap for your custom font if needed
+    fontFamily: "System",
   },
   subtitle: {
     color: Colors.card,
@@ -106,7 +102,7 @@ const styles = StyleSheet.create({
     fontFamily: "System",
   },
   googleButton: {
-    backgroundColor: "#09607C", // a bit darker for contrast
+    backgroundColor: "#09607C",
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 16,

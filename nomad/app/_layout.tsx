@@ -17,16 +17,16 @@ import Colors from "@/constants/Colors";
 import { HeaderBackButton } from "./locationDetails";
 
 export {
-  // Catch any errors thrown by the Layout component.
+  // Error boundary for navigation tree
   ErrorBoundary,
 } from "expo-router";
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
+  // initial route for navigation
   initialRouteName: "(tabs)",
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Prevent the splash screen from auto-hiding before asset loading is complete
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -53,13 +53,13 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
-// Custom header for Location Details (moved out of RootLayoutNav)
+//custom header for location details
 function LocationDetailsHeader({
   options,
   route,
 }: Readonly<{ options: any; route: any }>) {
   const title = options?.title ?? "Location Details";
-  // Only show back button if not the root
+  //only show back button if not the root
   const showBack = options?.headerBackVisible !== false;
   return (
     <View
@@ -97,7 +97,7 @@ function LocationDetailsHeader({
           {title}
         </Text>
       </View>
-      {/* Spacer to balance the row if needed */}
+      {/*spacer to balance the row if needed*/}
       {showBack && <View style={{ width: 44 }} />}
     </View>
   );

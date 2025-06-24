@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   Animated,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
@@ -21,10 +22,6 @@ import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 import { Swipeable } from "react-native-gesture-handler";
 import ShareItinerary from "../../components/ShareItinerary";
-
-function logoutFromGoogle() {
-  // TODO: Integrate Google logout logic here (e.g., GoogleSignIn.signOutAsync())
-}
 
 function HeaderLogoutButton({ onLogout }: { onLogout: () => void }) {
   return (
@@ -49,6 +46,11 @@ export default function ItineraryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const modalizeRef = useRef<any>(null);
 
+  //refs for each Swipeable row for controlling Swipeable state
+  const swipeableRefs = useRef<
+    Record<string, React.RefObject<Swipeable | null>>
+  >({});
+
   const fetchItineraries = async () => {
     const data = await getAllItineraries();
     setItineraries(data);
@@ -59,13 +61,12 @@ export default function ItineraryScreen() {
   }, []);
 
   const handleLogout = React.useCallback(() => {
-    logoutFromGoogle();
     router.replace("/");
   }, [router]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderLogoutButton onLogout={handleLogout} />, // Use modular header right
+      headerRight: () => <HeaderLogoutButton onLogout={handleLogout} />,
     });
   }, [navigation, handleLogout]);
 
@@ -73,13 +74,12 @@ export default function ItineraryScreen() {
   const handleItineraryPress = async (
     itinerary: Itinerary & { id: string }
   ) => {
-    // Fetch all Google Maps lists
+    //fetch all Google Maps lists
     const lists = await getAllGoogleMapsLists();
-    // Try to find the list by city name (case-insensitive)
+    //use the connected googleMapsList property for lookup
     const list = lists.find(
       (l: any) =>
-        typeof l.city === "string" &&
-        l.city.toLowerCase() === itinerary.city.toLowerCase() &&
+        l.listName === itinerary.googleMapsList &&
         Array.isArray(l.places) &&
         l.places.length > 0
     ) as GoogleMapsList | undefined;
@@ -110,7 +110,7 @@ export default function ItineraryScreen() {
     days: number,
     list: string
   ) => {
-    // Check for duplicate itinerary name
+    //check for duplicate itinerary name
     const allItineraries = await getAllItineraries();
     if (
       allItineraries.some(
@@ -121,16 +121,16 @@ export default function ItineraryScreen() {
       return;
     }
     setBottomSheetError("");
-    // Create a new itinerary with 0 locations and empty days, and reference to Google Maps list
+    //itinerary with 0 locations, empty days, reference to maps list
     const newItinerary = {
       city: name,
       days,
-      locations: 0, // Start with 0 locations
+      locations: 0,
       details: Array.from({ length: days }, (_, i) => ({
         day: i + 1,
         places: [],
       })),
-      googleMapsList: list, // Reference to connected Google Maps list
+      googleMapsList: list,
     };
     await addItinerary(newItinerary);
     getAllItineraries().then((data) => setItineraries(data));
@@ -141,13 +141,34 @@ export default function ItineraryScreen() {
     setImporting(true);
     await importDemoGoogleMapsLists();
     setImporting(false);
-    // Optionally refresh itineraries or Google Maps lists here
   };
 
-  // Swipe-to-delete for itineraries
-  const handleDeleteItinerary = async (id: string) => {
-    await deleteItinerary(id);
-    fetchItineraries();
+  //swipe 2 delete for itineraries
+  const handleDeleteItinerary = (id: string) => {
+    const swipeableRef = swipeableRefs.current[id];
+    if (swipeableRef && swipeableRef.current) {
+      swipeableRef.current.close();
+    }
+    setTimeout(() => {
+      Alert.alert(
+        "Delete Itinerary",
+        "Are you sure you want to delete this itinerary? This action cannot be undone.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await deleteItinerary(id);
+              fetchItineraries();
+            },
+          },
+        ]
+      );
+    }, 50);
   };
 
   const renderRightActions = (
@@ -187,7 +208,6 @@ export default function ItineraryScreen() {
               borderRadius: 18,
               backgroundColor: "#ff4757",
               alignSelf: "center",
-              // Center content
               display: "flex",
             }}
             onPress={() => handleDeleteItinerary(id)}
@@ -253,54 +273,63 @@ export default function ItineraryScreen() {
       <FlatList
         data={itineraries}
         keyExtractor={(item) => item.city}
-        renderItem={({ item }) => (
-          <Swipeable
-            renderRightActions={(progress) =>
-              renderRightActions(item.id, progress)
-            }
-            rightThreshold={40}
-            overshootRight={false}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.card,
-                { transform: [{ scale: pressed ? 0.97 : 1 }] },
-              ]}
-              onPress={() => handleItineraryPress(item)}
+        renderItem={({ item }) => {
+          //get or create a ref for this item
+          if (!swipeableRefs.current[item.id]) {
+            swipeableRefs.current[item.id] =
+              React.createRef<Swipeable | null>();
+          }
+          const swipeableRef = swipeableRefs.current[item.id];
+          return (
+            <Swipeable
+              ref={swipeableRef}
+              renderRightActions={(progress) =>
+                renderRightActions(item.id, progress)
+              }
+              rightThreshold={40}
+              overshootRight={false}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.card,
+                  { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                ]}
+                onPress={() => handleItineraryPress(item)}
               >
-                <View>
-                  <Text style={styles.city}>{item.city}</Text>
-                  <Text style={styles.cardInfo}>{item.days} days</Text>
-                  <Text style={styles.cardInfo}>
-                    {item.locations} locations
-                  </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <View>
+                    <Text style={styles.city}>{item.city}</Text>
+                    <Text style={styles.cardInfo}>{item.days} days</Text>
+                    <Text style={styles.cardInfo}>
+                      {item.locations} locations
+                    </Text>
+                  </View>
+                  <ShareItinerary
+                    city={item.city}
+                    days={item.days}
+                    locations={item.locations}
+                    details={item.details}
+                    buttonStyle={{ padding: 4 }}
+                    iconColor={Colors.accent}
+                  />
                 </View>
-                <ShareItinerary
-                  city={item.city}
-                  days={item.days}
-                  locations={item.locations}
-                  details={item.details}
-                  buttonStyle={{ padding: 4 }}
-                  iconColor={Colors.accent}
-                />
-              </View>
-            </Pressable>
-          </Swipeable>
-        )}
+              </Pressable>
+            </Swipeable>
+          );
+        }}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={{ paddingBottom: 64 }}
         refreshing={refreshing}
         onRefresh={onRefresh}
       />
 
-      {/* Floating Add Button */}
+      {/* floating add button */}
       <Pressable
         style={{
           position: "absolute",

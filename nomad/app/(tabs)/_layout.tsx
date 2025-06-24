@@ -8,12 +8,12 @@ export default function Layout() {
       <Drawer
         screenOptions={{
           headerStyle: { backgroundColor: Colors.primary },
-          headerTintColor: Colors.card, // Color for title and hamburger
+          headerTintColor: Colors.card,
           headerTitleStyle: {
             fontWeight: "bold",
             fontSize: 26,
           },
-          headerLeft: () => null, // Remove hamburger icon from all screens by default
+          headerLeft: () => null,
         }}
       >
         <Drawer.Screen
@@ -30,7 +30,7 @@ export default function Layout() {
           options={{
             drawerLabel: "Itinerary",
             title: "Itinerary",
-            headerLeft: () => null, // Remove hamburger icon specifically for itinerary
+            headerLeft: () => null,
           }}
         />
       </Drawer>

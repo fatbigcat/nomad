@@ -7,9 +7,8 @@ import {
 import demoGoogleMapsLists from "./demoGoogleMapsLists";
 
 export async function importDemoGoogleMapsLists() {
-  // Fetch existing lists from Firestore
   const existingLists = await getAllGoogleMapsLists();
-  // Defensive: ensure each list has listName and id
+  //check if each has a listname and id
   const existingNames = new Set(
     existingLists.map((l: any) => l.listName).filter(Boolean)
   );
@@ -28,7 +27,7 @@ export async function importDemoGoogleMapsLists() {
   }
   console.log("Import complete.");
 
-  // Remove duplicates from Firestore (keep only one per listName)
+  //remove duplicates from Firestore
   const allLists = await getAllGoogleMapsLists();
   const seen = new Set<string>();
   for (const l of allLists) {

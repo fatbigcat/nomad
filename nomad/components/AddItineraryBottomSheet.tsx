@@ -22,8 +22,8 @@ const AddItineraryBottomSheet = forwardRef<
   Modalize,
   AddItineraryBottomSheetProps
 >(({ onAdd, error, clearError }, ref) => {
-  const [availableLists, setAvailableLists] = useState<string[]>([]);
-  const [name, setName] = useState("");
+  const [availableLists, setAvailableLists] = useState<string[]>([]); //lists from firestore
+  const [name, setName] = useState(""); //store current value
   const [days, setDays] = useState("");
   const [list, setList] = useState("");
   const [localError, setLocalError] = useState("");
@@ -66,7 +66,7 @@ const AddItineraryBottomSheet = forwardRef<
   return (
     <Modalize
       ref={ref}
-      onOpen={refreshLists} // <-- Refresh lists every time the sheet opens
+      onOpen={refreshLists} //refresh lists every time the sheet opens
       adjustToContentHeight
       handleStyle={{ backgroundColor: "#CCC" }}
       modalStyle={{
@@ -101,7 +101,7 @@ const AddItineraryBottomSheet = forwardRef<
           autoFocus
         />
 
-        {/* Dropdown for Choose List */}
+        {/* dropdown for choosing a list */}
         <TouchableOpacity
           style={[
             styles.input,
@@ -172,7 +172,7 @@ const AddItineraryBottomSheet = forwardRef<
           <Text style={styles.addButtonText}>Add itinerary</Text>
         </TouchableOpacity>
 
-        {/* Add a spacer to guarantee extra room above keyboard */}
+        {/* extra room above keyboard */}
         <View style={{ height: 120 }} />
       </ScrollView>
     </Modalize>

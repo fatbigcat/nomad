@@ -31,7 +31,7 @@ import {
 
 const screenHeight = Dimensions.get("window").height;
 
-// Define types if not imported from Firestore-aware file
+//define types if not imported from Firestore-aware file
 export type Place = {
   name: string;
   type: "food" | "museum" | "store" | "landmark" | "park";
@@ -83,7 +83,7 @@ function getPlaceIcon(type: Place["type"]) {
   );
 }
 
-// Utility: convert any Place to a Firestore-compatible Place (only supported types)
+//utility: convert any Place to a Firestore-compatible Place (only supported types)
 function toFirestorePlace(
   p: any
 ): import("../data/demoItinerary").Place | null {
@@ -105,7 +105,7 @@ function toFirestorePlace(
   return null;
 }
 
-// Type guard for Firestore Place
+//type guard for Firestore Place
 function isFirestorePlace(p: any): p is import("../data/demoItinerary").Place {
   return (
     !!p &&
@@ -117,7 +117,6 @@ function isFirestorePlace(p: any): p is import("../data/demoItinerary").Place {
   );
 }
 
-// Helper to get itinerary for a city
 function getItineraryForCity(all: any[], city: string): any | undefined {
   return all.find((it) => it.city.toLowerCase() === city.toLowerCase());
 }
@@ -144,7 +143,7 @@ function EditListButton({
   );
 }
 
-// --- Reusable PlaceCard component ---
+// --- reusable placecard component ---
 function PlaceCard({
   name,
   hours,
@@ -198,7 +197,6 @@ function PlaceCard({
 
 const MemoizedEditListButton = React.memo(EditListButton);
 
-// --- Refactor fetchItinerary to avoid deep nesting ---
 function buildFullItinerary(match: any): ItineraryDay[] {
   if (match && match.days) {
     const numDays = match.days;
@@ -210,8 +208,6 @@ function buildFullItinerary(match: any): ItineraryDay[] {
   }
   return [];
 }
-
-// Define HeaderRight outside the component
 function HeaderRight({
   editMode,
   onPress,
@@ -222,7 +218,6 @@ function HeaderRight({
   return <EditListButton editMode={editMode} onPress={onPress} />;
 }
 
-// Define HeaderLeft for back arrow
 function HeaderLeft() {
   const navigation = useNavigation();
   return (
@@ -253,23 +248,22 @@ export default function ItineraryDetailsScreen() {
     GoogleMapsPlace | undefined
   >(undefined);
   const [alwaysOpenValue, setAlwaysOpenValue] = useState(screenHeight * 0.23);
-  // Edit mode state
   const [editMode, setEditMode] = useState(false);
   const [selectedForDelete, setSelectedForDelete] = useState<{
     [key: string]: boolean;
   }>({});
 
-  // Multi-select state for add location sheet
+  //multi-select state
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
 
-  // Handler to toggle selection in add location sheet
+  //toggle selection in add location sheet
   const handleToggleLocation = (name: string) => {
     setSelectedLocations((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
     );
   };
 
-  // Handler to add multiple selected locations to the itinerary
+  // add multiple selected locations to the itinerary
   const handleAddMultipleLocations = () => {
     if (addLocationMode.dayIndex === null || selectedLocations.length === 0)
       return;
@@ -312,7 +306,7 @@ export default function ItineraryDetailsScreen() {
     })();
   };
 
-  // Fetch itinerary from Firestore on mount
+  //fetch itinerary from firestore on mount
   useEffect(() => {
     setLoading(true);
     getAllItineraries().then((all) => {
@@ -399,23 +393,34 @@ export default function ItineraryDetailsScreen() {
     );
   };
 
-  // Add location to a day in the itinerary
+  //add location to a day in the itinerary
   const handleAddLocation = async (dayIndex: number) => {
     const lists = (await getAllGoogleMapsLists()) as (GoogleMapsList & {
       id: string;
     })[];
+    const allItineraries = await getAllItineraries();
     const itineraryCity = city?.toString() || "";
-    const cityList = lists.find(
-      (l) => l.city.toLowerCase() === itineraryCity.toLowerCase()
+
+    const match = allItineraries.find(
+      (it) => it.city.toLowerCase() === itineraryCity.toLowerCase()
     );
-    if (!cityList || !cityList.places || cityList.places.length === 0) {
+    if (!match || !match.googleMapsList) {
       Alert.alert(
-        "No locations available",
-        `No Google Maps list found for ${itineraryCity} or the list is empty.`
+        "No Google Maps list linked",
+        `This itinerary does not have a linked Google Maps list. Please edit the itinerary to add one.`
       );
       return;
     }
-    // Filter out places already in this day
+    // Find the Google Maps list by the googleMapsList property (listName)
+    const cityList = lists.find((l) => l.listName === match.googleMapsList);
+    if (!cityList || !cityList.places || cityList.places.length === 0) {
+      Alert.alert(
+        "No locations available",
+        `No Google Maps list found for this itinerary or the list is empty.`
+      );
+      return;
+    }
+    //filter out places already in this day
     const usedNames = new Set(itinerary[dayIndex].places.map((p) => p.name));
     const availablePlaces = cityList.places.filter(
       (p: GoogleMapsPlace) => !usedNames.has(p.name)
@@ -455,13 +460,14 @@ export default function ItineraryDetailsScreen() {
     return places;
   };
 
-  // Parse center param if present
+  //parse center param if present
   let initialRegion = {
     latitude: 48.864716,
     longitude: 2.349014,
     latitudeDelta: 0.06,
     longitudeDelta: 0.04,
   };
+  const [mapKey, setMapKey] = useState(0);
   if (typeof center === "string") {
     try {
       const parsed = JSON.parse(center);
@@ -477,19 +483,41 @@ export default function ItineraryDetailsScreen() {
         };
       }
     } catch {}
+  } else {
+    (async () => {
+      const lists = (await getAllGoogleMapsLists()) as (GoogleMapsList & {
+        id: string;
+      })[];
+      const allItineraries = await getAllItineraries();
+      const itineraryCity = city?.toString() || "";
+      const match = allItineraries.find(
+        (it) => it.city.toLowerCase() === itineraryCity.toLowerCase()
+      );
+      if (match && match.googleMapsList) {
+        const cityList = lists.find((l) => l.listName === match.googleMapsList);
+        if (cityList && cityList.places && cityList.places.length > 0) {
+          initialRegion = {
+            latitude: cityList.places[0].lat,
+            longitude: cityList.places[0].lng,
+            latitudeDelta: 0.06,
+            longitudeDelta: 0.04,
+          };
+          if (typeof setMapKey === "function") setMapKey((k: number) => k + 1);
+        }
+      }
+    })();
   }
-  // State to force remount of MapView
-  const [mapKey, setMapKey] = useState(0);
+  //state to force remount of MapView
   useFocusEffect(
     React.useCallback(() => {
       setMapKey((k) => k + 1);
     }, [center, city])
   );
 
-  // Derive allPlaces from itinerary state
+  //get allPlaces from itinerary state
   const allPlaces = itinerary.flatMap((day) => day.places);
 
-  // Edit mode handlers
+  //edit mode handlers
   const handleToggleEditMode = () => {
     setEditMode((prev) => !prev);
     setSelectedForDelete({});
@@ -497,19 +525,16 @@ export default function ItineraryDetailsScreen() {
 
   const cityTitle = Array.isArray(city) ? city[0] : city || "Itinerary";
 
-  // Move headerRight definition out of the render tree
   React.useLayoutEffect(() => {
     navigation.setOptions({
       title: cityTitle,
-      headerLeft: () => <HeaderLeft />, // <-- Add back arrow
+      headerLeft: () => <HeaderLeft />,
       headerRight: () => (
         <HeaderRight editMode={editMode} onPress={handleToggleEditMode} />
       ),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityTitle, editMode]);
 
-  // Remove all selected places for a day
   function removeSelectedPlacesForDay(dayIndex: number) {
     const updated = itinerary.map((d: ItineraryDay, idx: number) => {
       if (idx !== dayIndex) return d;
@@ -532,7 +557,7 @@ export default function ItineraryDetailsScreen() {
     updateItineraryInFirestore(city, updated);
   }
 
-  // Toggle selection for a place in edit mode
+  //selection for a place in edit mode
   function handleToggleLocationDelete(dayIndex: number, placeIndex: number) {
     const key = `${dayIndex}-${placeIndex}`;
     setSelectedForDelete((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -717,7 +742,7 @@ export default function ItineraryDetailsScreen() {
                           </TouchableOpacity>
                         )}
                       </View>
-                      {/* Always render at least the empty state for each day */}
+                      {/* always render at least the empty state for each day */}
                       {day.places.length === 0 && (
                         <View
                           style={[
@@ -802,7 +827,7 @@ export default function ItineraryDetailsScreen() {
                           <TouchableOpacity
                             style={styles.addDayButton}
                             onPress={() => {
-                              // Add a new day to the itinerary
+                              //add new day to itinerary
                               setItinerary((prev) => [
                                 ...prev,
                                 { day: prev.length + 1, places: [] },
@@ -872,7 +897,7 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center", // center the text
+    justifyContent: "center",
     paddingHorizontal: 24,
     zIndex: 2,
   },
@@ -999,7 +1024,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    width: 54, // smaller width
+    width: 54,
     paddingLeft: 20,
     height: "100%",
   },
@@ -1007,7 +1032,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "column",
-    width: 40, // smaller button
+    width: 40,
     height: 44,
     borderRadius: 22,
     backgroundColor: "#ff4757",

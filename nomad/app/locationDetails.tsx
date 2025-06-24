@@ -10,8 +10,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "@/constants/Colors";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 
-// Modular back button for use in any screen
-export function HeaderBackButton({
+//back button for location details header only
+function HeaderBackButton({
   color = Colors.lightText,
   city,
 }: Readonly<{ color?: string; city?: string }>) {
@@ -28,7 +28,7 @@ export function HeaderBackButton({
             params: { city: String(city) },
           });
         } else {
-          router.push("/itinerary"); // fallback to itinerary list
+          router.push("/itinerary"); //fallback to itinerary list
         }
       }}
       style={{ marginLeft: 12, padding: 4 }}
@@ -93,7 +93,7 @@ export default function LocationDetailsScreen() {
   }
 
   React.useLayoutEffect(() => {
-    // Remove headerLeft hack: header is now set globally in _layout.tsx
+    //header is now set globally in _layout.tsx
     navigation.setOptions({
       title: name || "Location Details",
     });

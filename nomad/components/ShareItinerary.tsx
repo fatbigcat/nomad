@@ -129,11 +129,10 @@ export default function ShareItinerary({
               let icon = "📍"; // default
               if (/beach/i.test(place.name)) icon = "🏖️";
               else if (
-                /mercado|market|restaurant|food|boqueria/i.test(place.name)
+                /market|restaurant|food/i.test(place.name)
               )
                 icon = "🍴";
-              else if (/corte/i.test(place.name)) icon = "🛒";
-              // Add more rules as needed
+              else if (/store|mall|shop/i.test(place.name)) icon = "🛒";
               const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(
                 place.name
               )}+@${place.lat},${place.lng}`;
@@ -145,8 +144,8 @@ export default function ShareItinerary({
                   <a href="${mapsUrl}" class="gmap-link">Open in Google Maps (${place.lat.toFixed(
                 5
               )}, ${place.lng.toFixed(5)})</a>
-              <a href="${mapsUrl}" style="font-size:12px; color:#888; word-break:break-all; margin-top:2px; text-decoration:underline;">${mapsUrl}</a>
-              <a href="${mapsUrl}" class="gmap-link" style="display: none;"></a>
+                  <a href="${mapsUrl}" style="font-size:12px; color:#888; word-break:break-all; margin-top:2px; text-decoration:underline;">${mapsUrl}</a>
+                  <a href="${mapsUrl}" class="gmap-link" style="display: none;"></a>
                 </div>
               </li>`;
             })

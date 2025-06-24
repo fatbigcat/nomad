@@ -15,6 +15,7 @@ export type Itinerary = {
   days: number;
   locations: number;
   details: ItineraryDay[];
+  googleMapsList?: string; // Add this property for robust Google Maps linkage
 };
 
 const itinerariesCol = collection(db, "itineraries");
