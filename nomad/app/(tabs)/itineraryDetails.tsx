@@ -235,7 +235,9 @@ export default function ItineraryDetailsScreen() {
   const navigation = useNavigation();
   const modalizeRef = useRef<Modalize>(null);
   const mapRef = useRef<MapView>(null);
-  const { city } = useLocalSearchParams();
+  const { city, latitude, longitude } = useLocalSearchParams();
+  const lat = latitude ? parseFloat(latitude as string) : 0;
+  const lng = longitude ? parseFloat(longitude as string) : 0;
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [addLocationMode, setAddLocationMode] = useState<{
@@ -329,16 +331,6 @@ export default function ItineraryDetailsScreen() {
     );
     setItinerary(updated);
     updateItineraryInFirestore(city, updated);
-  };
-
-  const confirmAndRemovePlace = (dayIndex: number, placeIndex: number) => {
-    confirmDelete(() => removePlace(dayIndex, placeIndex), {
-      title: "Delete location?",
-      message:
-        "Are you sure you want to delete this location from the itinerary? This action cannot be undone.",
-      confirmText: "Delete",
-      cancelText: "Cancel",
-    });
   };
 
   const getFirestoreDetailsAndCount = (days: ItineraryDay[]) => {
@@ -451,7 +443,8 @@ export default function ItineraryDetailsScreen() {
     if (availablePlaces.length === 0) {
       confirmDelete(() => {}, {
         title: "All locations added",
-        message: "All available locations for this day have already been added.",
+        message:
+          "All available locations for this day have already been added.",
         confirmText: "OK",
         cancelText: undefined,
       });
@@ -491,41 +484,23 @@ export default function ItineraryDetailsScreen() {
     longitude: number;
     latitudeDelta: number;
     longitudeDelta: number;
-  }>(null);
+  }>({
+    latitude: lat,
+    longitude: lng,
+    latitudeDelta: 0.06,
+    longitudeDelta: 0.04,
+  });
 
-  // Only fetch region when city changes, and only if there are places
   useEffect(() => {
-    (async () => {
-      const lists = (await getAllGoogleMapsLists()) as (GoogleMapsList & { id: string })[];
-      const allItineraries = await getAllItineraries();
-      const itineraryCity = city?.toString() || "";
-      const match = allItineraries.find(
-        (it) => it.city.toLowerCase() === itineraryCity.toLowerCase()
-      );
-      if (match && match.googleMapsList) {
-        const cityList = lists.find((l) => l.listName === match.googleMapsList);
-        if (cityList && cityList.places && cityList.places.length > 0) {
-          const avg = cityList.places.reduce(
-            (acc, p) => {
-              acc.lat += p.lat;
-              acc.lng += p.lng;
-              return acc;
-            },
-            { lat: 0, lng: 0 }
-          );
-          const count = cityList.places.length;
-          setRegion({
-            latitude: avg.lat / count,
-            longitude: avg.lng / count,
-            latitudeDelta: 0.06,
-            longitudeDelta: 0.04,
-          });
-          return;
-        }
-      }
-      setRegion(null);
-    })();
-  }, [city]);
+    if (latitude && longitude) {
+      setRegion({
+        latitude: parseFloat(latitude as string),
+        longitude: parseFloat(longitude as string),
+        latitudeDelta: 0.06,
+        longitudeDelta: 0.04,
+      });
+    }
+  }, [latitude, longitude]);
 
   const allPlaces = itinerary.flatMap((day) => day.places);
 
@@ -600,7 +575,7 @@ export default function ItineraryDetailsScreen() {
           <View
             style={{
               ...StyleSheet.absoluteFillObject,
-              backgroundColor: '#181a20', // dark placeholder
+              backgroundColor: "#181a20", // dark placeholder
               zIndex: 1,
             }}
           />
@@ -728,13 +703,16 @@ export default function ItineraryDetailsScreen() {
                             ]}
                             onPress={() => {
                               // Ask for confirmation before deleting
-                              confirmDelete(() => removeSelectedPlacesForDay(dayIndex), {
-                                title: "Delete selected locations?",
-                                message:
-                                  "Are you sure you want to delete the selected locations from this day? This action cannot be undone.",
-                                confirmText: "Delete",
-                                cancelText: "Cancel",
-                              });
+                              confirmDelete(
+                                () => removeSelectedPlacesForDay(dayIndex),
+                                {
+                                  title: "Delete selected locations?",
+                                  message:
+                                    "Are you sure you want to delete the selected locations from this day? This action cannot be undone.",
+                                  confirmText: "Delete",
+                                  cancelText: "Cancel",
+                                }
+                              );
                             }}
                             disabled={
                               !day.places.some(

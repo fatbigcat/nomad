@@ -128,10 +128,7 @@ export default function ShareItinerary({
             .map((place) => {
               let icon = "📍"; // default
               if (/beach/i.test(place.name)) icon = "🏖️";
-              else if (
-                /market|restaurant|food/i.test(place.name)
-              )
-                icon = "🍴";
+              else if (/market|restaurant|food/i.test(place.name)) icon = "🍴";
               else if (/store|mall|shop/i.test(place.name)) icon = "🛒";
               const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(
                 place.name

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   Animated,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRouter } from "expo-router";
@@ -21,7 +22,6 @@ import type { Itinerary } from "../data/itineraryDb";
 import AddItineraryBottomSheet from "@/components/AddItineraryBottomSheet";
 import { Swipeable } from "react-native-gesture-handler";
 import ShareItinerary from "../../components/ShareItinerary";
-import { confirmDelete } from "../../components/common/confirmDelete";
 
 function HeaderLogoutButton({ onLogout }: { onLogout: () => void }) {
   return (
@@ -46,7 +46,7 @@ export default function ItineraryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const modalizeRef = useRef<any>(null);
 
-  //refs for each Swipeable row for controlling Swipeable state
+  //refs for each swipable row
   const swipeableRefs = useRef<
     Record<string, React.RefObject<Swipeable | null>>
   >({});
@@ -100,7 +100,8 @@ export default function ItineraryScreen() {
       pathname: "/itineraryDetails",
       params: {
         city: itinerary.city,
-        center: center ? JSON.stringify(center) : undefined,
+        latitude: center?.latitude,
+        longitude: center?.longitude,
       },
     });
   };
@@ -150,18 +151,23 @@ export default function ItineraryScreen() {
       swipeableRef.current.close();
     }
     setTimeout(() => {
-      confirmDelete(
-        async () => {
-          await deleteItinerary(id);
-          fetchItineraries();
-        },
-        {
-          title: "Delete Itinerary",
-          message:
-            "Are you sure you want to delete this itinerary? This action cannot be undone.",
-          confirmText: "Delete",
-          cancelText: "Cancel",
-        }
+      Alert.alert(
+        "Delete Itinerary",
+        "Are you sure you want to delete this itinerary? This action cannot be undone.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await deleteItinerary(id);
+              fetchItineraries();
+            },
+          },
+        ]
       );
     }, 50);
   };
