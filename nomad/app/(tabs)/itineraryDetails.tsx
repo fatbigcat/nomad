@@ -553,7 +553,6 @@ export default function ItineraryDetailsScreen() {
   return (
     <>
       <View style={{ flex: 1, position: "relative" }}>
-        {/* MAP or dark placeholder */}
         {region ? (
           <MapView
             ref={mapRef}
@@ -702,7 +701,6 @@ export default function ItineraryDetailsScreen() {
                               { backgroundColor: "#ff4757" },
                             ]}
                             onPress={() => {
-                              // Ask for confirmation before deleting
                               confirmDelete(
                                 () => removeSelectedPlacesForDay(dayIndex),
                                 {

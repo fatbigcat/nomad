@@ -68,7 +68,11 @@ const AddItineraryBottomSheet = forwardRef<
       ref={ref}
       onOpen={refreshLists} //refresh lists every time the sheet opens
       adjustToContentHeight
-      handleStyle={{ backgroundColor: "#CCC" }}
+      handleStyle={{
+        backgroundColor: Colors.primary,
+        marginTop: 10,
+        width: 60,
+      }}
       modalStyle={{
         borderTopLeftRadius: 22,
         borderTopRightRadius: 22,
@@ -88,7 +92,6 @@ const AddItineraryBottomSheet = forwardRef<
         showsVerticalScrollIndicator={false}
       >
         <View style={{ alignItems: "center", marginBottom: 16 }}>
-          <View style={styles.grabber} />
           <Text style={styles.title}>Create new itinerary</Text>
         </View>
 
