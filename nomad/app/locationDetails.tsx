@@ -11,7 +11,7 @@ import Colors from "@/constants/Colors";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 
 //back button for location details header only
-function HeaderBackButton({
+export function HeaderBackButton({
   color = Colors.lightText,
   city,
 }: Readonly<{ color?: string; city?: string }>) {
