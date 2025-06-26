@@ -24,7 +24,7 @@ interface Props {
   onBack: () => void;
   renderItem: (item: GoogleMapsPlace) => React.ReactNode;
   ListFooterComponent?: React.ReactNode;
-  rightAction?: React.ReactNode; // <-- new prop
+  rightAction?: React.ReactNode;
 }
 
 export default function LocationPickerScreen({
@@ -40,18 +40,18 @@ export default function LocationPickerScreen({
 }: Readonly<Props>) {
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={28} color={Colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Location</Text>
-        {/* Render rightAction if provided */}
+        {/* render rightAction if provided */}
         {rightAction ? (
           <View style={{ marginLeft: 8 }}>{rightAction}</View>
         ) : null}
       </View>
-      {/* Start point selector */}
+      {/* start point selector */}
       <View style={styles.startPointRow}>
         <Text style={styles.startPointLabel}>Start from:</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -78,7 +78,7 @@ export default function LocationPickerScreen({
           ))}
         </ScrollView>
       </View>
-      {/* Sort controls */}
+      {/* controls */}
       <View style={styles.sortRow}>
         <Text style={styles.sortLabel}>Sort by:</Text>
         <TouchableOpacity
@@ -119,7 +119,7 @@ export default function LocationPickerScreen({
           </Text>
         </TouchableOpacity>
       </View>
-      {/* List of locations */}
+      {/* locations */}
       <View style={{ flex: 1 }}>
         {places.map((item) => renderItem(item))}
         {ListFooterComponent}

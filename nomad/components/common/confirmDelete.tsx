@@ -9,8 +9,8 @@ export type ConfirmDeleteOptions = {
 };
 
 /**
- * Shows a confirmation alert for destructive delete actions.
- * Usage: confirmDelete(() => { ... })
+ * a confirmation alert for destructive delete actions.
+ * confirmDelete(() => { ... })
  */
 export function confirmDelete(
   onConfirm: () => void,

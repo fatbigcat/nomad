@@ -42,7 +42,6 @@ export function HeaderBackButton({
 export default function LocationDetailsScreen() {
   const navigation = useNavigation();
   const params = useLocalSearchParams();
-  // Expecting params: name, type, hours, lat, lng, city, day
   const { name, type, hours, lat, lng, city, day } = params;
 
   function getPlaceIcon(type: string) {
@@ -93,7 +92,7 @@ export default function LocationDetailsScreen() {
   }
 
   React.useLayoutEffect(() => {
-    //header is now set globally in _layout.tsx
+    //set globally in _layout.tsx
     navigation.setOptions({
       title: name || "Location Details",
     });

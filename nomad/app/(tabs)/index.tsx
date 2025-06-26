@@ -14,7 +14,6 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Top footprints and logo section */}
       <View style={styles.headerBg}>
         <View style={styles.logoBox}>
           <Text style={styles.logo}>🌞</Text>
