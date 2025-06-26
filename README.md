@@ -12,10 +12,7 @@
 ### Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/nomad.git
-   cd nomad/nomad
-   ```
+
 
 2. **Install dependencies:**
    ```bash
